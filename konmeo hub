@@ -1,0 +1,6 @@
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Konmeo22132-alt/konmeo/refs/heads/main/notify"))()
+task.wait(0.5)
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Konmeo22132-alt/konmeo/refs/heads/main/loading"))()
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Konmeo22132-alt/konmeo22132/refs/heads/main/konmeo_hub"))()
