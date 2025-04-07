@@ -1,5 +1,5 @@
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Konmeo22132-alt/konmeo/refs/heads/main/notify"))()
 
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Konmeo22132-alt/konmeo22132/refs/heads/main/test"))()
-
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Konmeo22132-alt/konmeo22132/refs/heads/main/konmeo_hup"))()
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Konmeo22132-alt/konmeo22132/refs/heads/main/test"))()
