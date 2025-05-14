@@ -28,3 +28,38 @@ Discord: @konmeo22132
 - Update 1.0.0
 + Release!
 + Change to Fluent UI
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+https://qiwi.gg/file/bUSr3973-botugphone
+"ODg3ODU1MjkwNDc5OTM1NTc4.GptQOC.LEo7x9b18gGBSbosHpseKk0l7AQ84bDlqanN_U"
