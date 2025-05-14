@@ -63,4 +63,4 @@ Discord: @konmeo22132
 
 https://qiwi.gg/file/bUSr3973-botugphone
 
-"ODg3ODU1MjkwNDc5OTM1NTc4.GptQOC.LEo7x9b18gGBSbosHpseKk0l7AQ84bDlqanN_U"
+"ODg3ODU1Mjkw    NDc5OTM1NTc4.GteErP. d3EiWgQ8FflyT 4AQygA Gp-G                  rNLgYkJi           P1P-n2Y"
