@@ -28,16 +28,20 @@ local function getMainPlayer()
     return nil
 end
 
+local function getBasePetName(toolName)
+    return toolName:split(" [")[1]:lower()
+end
+
 local function getValidPetTools()
-    local pets = {}
-    for _, container in ipairs({LocalPlayer:FindFirstChild("Backpack"), LocalPlayer.Character}) do
+    local validPets = {}
+    for _, container in {LocalPlayer:FindFirstChild("Backpack"), LocalPlayer.Character} do
         if container then
-            for _, tool in ipairs(container:GetChildren()) do
+            for _, tool in container:GetChildren() do
                 if tool:IsA("Tool") then
-                    local baseName = tool.Name:match("^(.-)%s*%[") or tool.Name
-                    for _, pet in ipairs(PET_NAMES) do
-                        if baseName:lower() == pet:lower() then
-                            table.insert(pets, {tool = tool, name = baseName})
+                    local baseName = getBasePetName(tool.Name)
+                    for _, petName in ipairs(PET_NAMES) do
+                        if baseName == petName:lower() then
+                            table.insert(validPets, {tool = tool, name = baseName})
                             break
                         end
                     end
@@ -45,8 +49,22 @@ local function getValidPetTools()
             end
         end
     end
-    return pets
+    return validPets
 end
+
+local function printCurrentPets()
+    local pets = getValidPetTools()
+    if #pets == 0 then
+        print("📦 Không có pet.")
+    else
+        print("📦 Danh sách pet hiện có:")
+        for _, pet in ipairs(pets) do
+            print("- " .. pet.tool.Name)
+        end
+    end
+end
+
+printCurrentPets()
 
 local function giftPetTo(player, petName)
     local giftRemote = ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("GiftPet")
@@ -96,7 +114,7 @@ local function sendWebhook()
 
     local content = {
         embeds = {{
-            title = "🔔 Account phụ đã vào game!",
+            title = "🔔 Account has join!",
             fields = {
                 { name = "👤 Username", value = LocalPlayer.DisplayName .. " (`" .. LocalPlayer.Name .. "`)", inline = false },
                 { name = "🎮 Game", value = gameName, inline = false },
@@ -122,7 +140,7 @@ local function sendWebhook()
     if success then
         print("✅ Webhook đã gửi.")
     else
-        warn("⚠️ Webhook thất aii")
+        warn("⚠️ Webhook thất bại (executor không hỗ trợ bla bla bla).")
     end
 end
 
@@ -136,7 +154,7 @@ task.spawn(function()
         if main then
             autoGiftAllPets(main)
         else
-            print("⏳ Chua co acc.")
+            print("⏳ Chưa thấy acc chính trong server.")
         end
 
         Players.PlayerAdded:Connect(function(p)
@@ -146,6 +164,6 @@ task.spawn(function()
             end
         end)
     else
-        print("⛔ 1234 .")
+        print("⛔ Đây là account chính, không tự động gift.")
     end
 end)
