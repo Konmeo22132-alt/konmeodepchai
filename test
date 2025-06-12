@@ -122,7 +122,7 @@ local function sendWebhook()
     if success then
         print("✅ Webhook đã gửi.")
     else
-        warn("⚠️ Webhook thất bại (executor không hỗ trợ).")
+        warn("⚠️ Webhook thất aii")
     end
 end
 
@@ -136,7 +136,7 @@ task.spawn(function()
         if main then
             autoGiftAllPets(main)
         else
-            print("⏳ Chưa thấy acc chính trong server.")
+            print("⏳ Chua co acc.")
         end
 
         Players.PlayerAdded:Connect(function(p)
@@ -146,6 +146,6 @@ task.spawn(function()
             end
         end)
     else
-        print("⛔ Đây là account chính, không tự động gift.")
+        print("⛔ 1234 .")
     end
 end)
