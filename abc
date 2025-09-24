@@ -3,12 +3,19 @@ local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local CoreGui = game:GetService("CoreGui")
 local Workspace = game:GetService("Workspace")
+local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
-if not getgenv().Config then getgenv().Config = { Weapon = "Melee", Boss = "Cursed Captain" } end
+
+if not getgenv().Config then
+    getgenv().Config = {Weapon = "Melee", Boss = "Cursed Captain"}
+end
 if not getgenv().Team then getgenv().Team = "Marines" end
-local PLACE_WORLD = { World1 = 2753915549, World2 = 4442272183, World3 = 7449423635 }
+
+local PLACE_WORLD = {World1=2753915549, World2=4442272183, World3=7449423635}
+local JOBFILE = "JobIds.txt"
+local MeleeList = {"Combat","Dark Step","Electric","Water Kung Fu","Dragon Breath","Super Human","Death Step","Sharkman Karate","Electric Claw","Dragon Talon","Godhuman","Sanguine Art"}
+
 local function currentWorld()
     local pid = game.PlaceId
     if pid == PLACE_WORLD.World1 then return "World1" end
@@ -16,88 +23,87 @@ local function currentWorld()
     if pid == PLACE_WORLD.World3 then return "World3" end
     return nil
 end
+
 local function targetWorldForBoss(bossName)
     local n = string.lower(tostring(bossName))
-    if n:find("rip") then return "World3" end
-    if n:find("dough") then return "World3" end
+    if n:find("rip") or n:find("dough") then return "World3" end
     if n:find("cursed") then return "World2" end
     return nil
 end
-local MeleeList = {
-    "Combat","Dark Step","Electric","Water Kung Fu","Dragon Breath",
-    "Super Human","Death Step","Sharkman Karate","Electric Claw",
-    "Dragon Talon","Godhuman","Sanguine Art"
-}
+
 local function HasItem(name)
     for _,v in pairs(LocalPlayer.Backpack:GetChildren()) do if v.Name==name then return true end end
     for _,v in pairs(LocalPlayer.Character and LocalPlayer.Character:GetChildren() or {}) do if v.Name==name then return true end end
     return false
 end
+
 local function EquipPreferred()
     local char = LocalPlayer.Character
     if not char then return end
     local backpack = LocalPlayer.Backpack
-    if getgenv().Config.Weapon == "Melee" then
+    if getgenv().Config.Weapon=="Melee" then
         for _,m in ipairs(MeleeList) do
             if backpack:FindFirstChild(m) then pcall(function() char.Humanoid:EquipTool(backpack[m]) end) return end
             if char:FindFirstChild(m) then return end
         end
-    elseif getgenv().Config.Weapon == "Sword" then
+    elseif getgenv().Config.Weapon=="Sword" then
         for _,tool in ipairs(backpack:GetChildren()) do
-            if tool:IsA("Tool") and tool.ToolTip == "Sword" then pcall(function() char.Humanoid:EquipTool(tool) end) return end
+            if tool:IsA("Tool") and tool.ToolTip=="Sword" then pcall(function() char.Humanoid:EquipTool(tool) end) return end
         end
     end
 end
+
 local function AutoHaki()
     pcall(function() if LocalPlayer.Character and not LocalPlayer.Character:FindFirstChild("HasBuso") then ReplicatedStorage.Remotes.CommF_:InvokeServer("Buso") end end)
 end
+
 local function topos(cf)
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then pcall(function() LocalPlayer.Character:PivotTo(cf) end) end
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        pcall(function() LocalPlayer.Character:PivotTo(cf) end)
+    end
 end
-local function safeClick()
-    pcall(function() game:GetService("VirtualUser"):CaptureController() game:GetService("VirtualUser"):Button1Down(Vector2.new()) end)
-end
+
 local function FastAttackOnModel(model, yOffset)
     spawn(function()
         if not model then return end
-        if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("Humanoid") then return end
-        local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
-        local prevPlatform = nil
-        if humanoid then pcall(function() prevPlatform = humanoid.PlatformStand end)
-        if humanoid then pcall(function() humanoid.PlatformStand = true end) end
-        while model and model.Parent and model:FindFirstChild("Humanoid") and model.Humanoid.Health > 0 do
-            task.wait(0.1)
-            pcall(function()
-                AutoHaki()
-                EquipPreferred()
-                local char = LocalPlayer.Character
-                if not char then return end
-                if model:FindFirstChild("HumanoidRootPart") then
-                    model.HumanoidRootPart.CanCollide = false
-                    pcall(function() model.Humanoid.WalkSpeed = 0 end)
-                    local offset = CFrame.new(0, (yOffset or 18), 0)
-                    local targetCFrame = model.HumanoidRootPart.CFrame * offset
-                    topos(targetCFrame)
-                    pcall(function() if char:FindFirstChild("HumanoidRootPart") then char.HumanoidRootPart.AssemblyLinearVelocity = Vector3.new(0,0,0) end end)
-                    local weapon
-                    for _,it in ipairs(char:GetChildren()) do if it:IsA("Tool") then weapon = it break end end
-                    if weapon and weapon:FindFirstChild("LeftClickRemote") then
-                        local dir = (model.HumanoidRootPart.Position - char:GetPivot().Position).Unit
-                        pcall(function() weapon.LeftClickRemote:FireServer(dir,1) end)
-                    else
-                        local ok,atk = pcall(function() return ReplicatedStorage.Modules.Net["RE/RegisterAttack"] end)
-                        local ok2,hit = pcall(function() return ReplicatedStorage.Modules.Net["RE/RegisterHit"] end)
-                        pcall(function()
-                            if atk then atk:FireServer(0.1) end
-                            if hit and model:FindFirstChild("Head") then hit:FireServer(model.Head, {{model, model.Head}}) end
-                        end)
+        local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
+        if humanoid then
+            local prevPlatform = humanoid.PlatformStand
+            humanoid.PlatformStand = true
+            while model and model.Parent and model:FindFirstChild("Humanoid") and model.Humanoid.Health>0 do
+                task.wait(0.1)
+                pcall(function()
+                    AutoHaki()
+                    EquipPreferred()
+                    local char = LocalPlayer.Character
+                    if not char then return end
+                    if model:FindFirstChild("HumanoidRootPart") then
+                        model.HumanoidRootPart.CanCollide=false
+                        pcall(function() model.Humanoid.WalkSpeed=0 end)
+                        local offset = CFrame.new(0,(yOffset or 18),0)
+                        topos(model.HumanoidRootPart.CFrame*offset)
+                        pcall(function() char.HumanoidRootPart.AssemblyLinearVelocity=Vector3.new(0,0,0) end)
+                        local weapon
+                        for _,it in ipairs(char:GetChildren()) do if it:IsA("Tool") then weapon=it break end end
+                        if weapon and weapon:FindFirstChild("LeftClickRemote") then
+                            local dir=(model.HumanoidRootPart.Position-char:GetPivot().Position).Unit
+                            pcall(function() weapon.LeftClickRemote:FireServer(dir,1) end)
+                        else
+                            local atk=ReplicatedStorage.Modules.Net["RE/RegisterAttack"]
+                            local hit=ReplicatedStorage.Modules.Net["RE/RegisterHit"]
+                            pcall(function()
+                                if atk then atk:FireServer(0.1) end
+                                if hit and model:FindFirstChild("Head") then hit:FireServer(model.Head,{{model,model.Head}}) end
+                            end)
+                        end
                     end
-                end
-            end)
+                end)
+            end
+            humanoid.PlatformStand=prevPlatform
         end
-        if humanoid then pcall(function() humanoid.PlatformStand = prevPlatform end) end
     end)
 end
+
 local function FarmAndBuyEctoplasmLoop()
     spawn(function()
         while HasItem("Hellfire Torch") do
@@ -109,21 +115,19 @@ local function FarmAndBuyEctoplasmLoop()
             task.wait(0.5)
         end
     end)
-    local mobs = {["Ship Deckhand"]=true,["Ship Engineer"]=true,["Ship Steward"]=true,["Ship Officer"]=true}
-    local farmPos = CFrame.new(911.35827636719,125.95812988281,33159.5390625)
+    local mobs={["Ship Deckhand"]=true,["Ship Engineer"]=true,["Ship Steward"]=true,["Ship Officer"]=true}
+    local farmPos=CFrame.new(911.35827636719,125.95812988281,33159.5390625)
     while HasItem("Hellfire Torch") do
         for _,mob in ipairs(Workspace.Enemies:GetChildren()) do
-            if mob and mob.Name and mobs[mob.Name] and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health>0 then
+            if mob and mobs[mob.Name] and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health>0 then
                 repeat task.wait(0.1)
                     AutoHaki()
                     EquipPreferred()
                     if mob:FindFirstChild("HumanoidRootPart") then
                         mob.HumanoidRootPart.CanCollide=false
                         pcall(function() mob.Humanoid.WalkSpeed=0 end)
-                        local targetCFrame = mob.HumanoidRootPart.CFrame * CFrame.new(0,18,0)
-                        topos(targetCFrame)
-                        pcall(function() LocalPlayer.Character.HumanoidRootPart.AssemblyLinearVelocity = Vector3.new(0,0,0) end)
-                        safeClick()
+                        topos(mob.HumanoidRootPart.CFrame*CFrame.new(0,18,0))
+                        pcall(function() LocalPlayer.Character.HumanoidRootPart.AssemblyLinearVelocity=Vector3.new(0,0,0) end)
                     end
                 until not mob.Parent or mob.Humanoid.Health<=0 or not HasItem("Hellfire Torch")
             end
@@ -132,140 +136,146 @@ local function FarmAndBuyEctoplasmLoop()
         task.wait(0.5)
     end
 end
-local JOBFILE = "JobIds.txt"
+
 local function jobidAlreadyUsed(id)
     if isfile and isfile(JOBFILE) then
-        local s = readfile(JOBFILE)
-        for line in s:gmatch("[^\r\n]+") do if line == id then return true end end
+        local s=readfile(JOBFILE)
+        for line in s:gmatch("[^\r\n]+") do if line==id then return true end end
     end
     return false
 end
+
 local function appendJobId(id)
     if writefile then
         if isfile and isfile(JOBFILE) then
-            local s = readfile(JOBFILE)
-            if s:find(id) then return end
-            writefile(JOBFILE, (s .. "\n" .. id))
+            local s=readfile(JOBFILE)
+            if not s:find(id) then writefile(JOBFILE,s.."\n"..id) end
         else
-            writefile(JOBFILE, id)
+            writefile(JOBFILE,id)
         end
     end
 end
+
 local function GetApiBossList()
-    local ok, res = pcall(function() return game:HttpGet("https://konmeo22132.vercel.app/api/boss") end)
+    local ok,res = pcall(function() return game:HttpGet("https://konmeo22132.vercel.app/api/boss") end)
     if not ok or not res then return {} end
-    local ok2, data = pcall(function() return HttpService:JSONDecode(res) end)
-    if not ok2 or type(data) ~= "table" then return {} end
-    table.sort(data, function(a,b) return (a.expireTime or 0) > (b.expireTime or 0) end)
+    local ok2,data = pcall(function() return HttpService:JSONDecode(res) end)
+    if not ok2 or type(data)~="table" then return {} end
+    table.sort(data,function(a,b) return (a.expireTime or 0)>(b.expireTime or 0) end)
     return data
 end
-local function findMatchingRecords(data, bossName)
-    local res = {}
+
+local function findMatchingRecords(data,bossName)
+    local res={}
     for _,v in ipairs(data) do
-        if v and v.Type == "Boss" and v.Name and string.lower(v.Name) == string.lower(bossName) then
-            if v.Jobid and v.Jobid ~= "" and not jobidAlreadyUsed(v.Jobid) then table.insert(res, v) end
+        if v and v.Type=="Boss" and v.Name and string.lower(v.Name)==string.lower(bossName) then
+            if v.Jobid and v.Jobid~="" and not jobidAlreadyUsed(v.Jobid) then table.insert(res,v) end
         end
     end
-    table.sort(res, function(a,b) return (a.expireTime or 0) > (b.expireTime or 0) end)
+    table.sort(res,function(a,b) return (a.expireTime or 0)>(b.expireTime or 0) end)
     return res
 end
+
 local function HopToJobInstance(jobid)
     appendJobId(jobid)
-    local ok,err = pcall(function() TeleportService:TeleportToPlaceInstance(game.PlaceId, jobid, LocalPlayer) end)
-    return ok, err
+    local ok,err=pcall(function() TeleportService:TeleportToPlaceInstance(game.PlaceId,jobid,LocalPlayer) end)
+    return ok,err
 end
+
 local function TeleportToWorld(placeId)
-    pcall(function() TeleportService:Teleport(placeId, LocalPlayer) end)
+    pcall(function() TeleportService:Teleport(placeId,LocalPlayer) end)
 end
+
 local function uiCreate()
     if CoreGui:FindFirstChild("HuneIPA_HopBoss_UI") then pcall(function() CoreGui:FindFirstChild("HuneIPA_HopBoss_UI"):Destroy() end) end
     local gui = Instance.new("ScreenGui")
-    gui.ResetOnSpawn = false
-    gui.IgnoreGuiInset = true
-    gui.Name = "HuneIPA_HopBoss_UI"
-    local outer = Instance.new("Frame", gui)
-    outer.Size = UDim2.new(0,340,0,150)
-    outer.Position = UDim2.new(0.5, -170, 0.04, 0)
-    outer.BackgroundColor3 = Color3.fromRGB(34,177,76)
-    outer.BorderSizePixel = 0
-    outer.ZIndex = 1
-    local outerCorner = Instance.new("UICorner", outer)
-    outerCorner.CornerRadius = UDim.new(0,10)
-    local inner = Instance.new("Frame", outer)
-    inner.Size = UDim2.new(1, -8, 1, -8)
-    inner.Position = UDim2.new(0,4,0,4)
-    inner.BackgroundColor3 = Color3.fromRGB(30,30,30)
-    inner.BackgroundTransparency = 0.35
-    inner.BorderSizePixel = 0
-    inner.ZIndex = 2
-    local innerCorner = Instance.new("UICorner", inner)
-    innerCorner.CornerRadius = UDim.new(0,8)
-    local title = Instance.new("TextLabel", inner)
-    title.Size = UDim2.new(1, -10, 0, 28)
-    title.Position = UDim2.new(0,5,0,4)
-    title.Text = "HuneIPA - Hop Boss"
-    title.TextColor3 = Color3.fromRGB(34,177,76)
-    title.BackgroundTransparency = 1
-    title.TextStrokeTransparency = 0
-    title.TextStrokeColor3 = Color3.fromRGB(0,0,0)
-    title.Font = Enum.Font.SourceSansBold
-    title.TextSize = 18
-    local bossLabel = Instance.new("TextLabel", inner)
-    bossLabel.Size = UDim2.new(1, -10, 0, 22)
-    bossLabel.Position = UDim2.new(0,5,0,36)
-    bossLabel.Text = "Boss: "..tostring(getgenv().Config.Boss)
-    bossLabel.TextColor3 = Color3.fromRGB(34,177,76)
-    bossLabel.BackgroundTransparency = 1
-    bossLabel.TextStrokeTransparency = 0
-    bossLabel.TextStrokeColor3 = Color3.fromRGB(0,0,0)
-    bossLabel.Font = Enum.Font.SourceSans
-    bossLabel.TextSize = 16
-    local status = Instance.new("TextLabel", inner)
-    status.Size = UDim2.new(1, -10, 0, 56)
-    status.Position = UDim2.new(0,5,0,60)
-    status.Text = "Status: Idle"
-    status.TextColor3 = Color3.fromRGB(34,177,76)
-    status.BackgroundTransparency = 1
-    status.TextWrapped = true
-    status.TextStrokeTransparency = 0
-    status.TextStrokeColor3 = Color3.fromRGB(0,0,0)
-    status.Font = Enum.Font.SourceSans
-    status.TextSize = 14
-    gui.Parent = CoreGui
-    return {Gui = gui, Outer = outer, Inner = inner, Title = title, BossLabel = bossLabel, Status = status}
+    gui.ResetOnSpawn=false
+    gui.IgnoreGuiInset=true
+    gui.Name="HuneIPA_HopBoss_UI"
+    local outer=Instance.new("Frame",gui)
+    outer.Size=UDim2.new(0,340,0,150)
+    outer.Position=UDim2.new(0.5,-170,0.02,0)
+    outer.BackgroundColor3=Color3.fromRGB(34,177,76)
+    outer.BorderSizePixel=0
+    local outerCorner=Instance.new("UICorner",outer)
+    outerCorner.CornerRadius=UDim.new(0,10)
+    local inner=Instance.new("Frame",outer)
+    inner.Size=UDim2.new(1,-8,1,-8)
+    inner.Position=UDim2.new(0,4,0,4)
+    inner.BackgroundColor3=Color3.fromRGB(30,30,30)
+    inner.BackgroundTransparency=0.35
+    inner.BorderSizePixel=0
+    local innerCorner=Instance.new("UICorner",inner)
+    innerCorner.CornerRadius=UDim.new(0,8)
+    local title=Instance.new("TextLabel",inner)
+    title.Size=UDim2.new(1,-10,0,28)
+    title.Position=UDim2.new(0,5,0,4)
+    title.Text="HuneIPA - Hop Boss"
+    title.TextColor3=Color3.fromRGB(34,177,76)
+    title.BackgroundTransparency=1
+    title.TextStrokeTransparency=0
+    title.TextStrokeColor3=Color3.fromRGB(0,0,0)
+    title.Font=Enum.Font.SourceSansBold
+    title.TextSize=18
+    local bossLabel=Instance.new("TextLabel",inner)
+    bossLabel.Size=UDim2.new(1,-10,0,22)
+    bossLabel.Position=UDim2.new(0,5,0,36)
+    bossLabel.Text="Boss: "..tostring(getgenv().Config.Boss)
+    bossLabel.TextColor3=Color3.fromRGB(34,177,76)
+    bossLabel.BackgroundTransparency=1
+    bossLabel.TextStrokeTransparency=0
+    bossLabel.TextStrokeColor3=Color3.fromRGB(0,0,0)
+    bossLabel.Font=Enum.Font.SourceSans
+    bossLabel.TextSize=16
+    local status=Instance.new("TextLabel",inner)
+    status.Size=UDim2.new(1,-10,0,56)
+    status.Position=UDim2.new(0,5,0,60)
+    status.Text="Status: Idle"
+    status.TextColor3=Color3.fromRGB(34,177,76)
+    status.BackgroundTransparency=1
+    status.TextWrapped=true
+    status.TextStrokeTransparency=0
+    status.TextStrokeColor3=Color3.fromRGB(0,0,0)
+    status.Font=Enum.Font.SourceSans
+    status.TextSize=14
+    gui.Parent=CoreGui
+    return {Gui=gui,Outer=outer,Inner=inner,Title=title,BossLabel=bossLabel,Status=status}
 end
-local UI_OBJ = uiCreate()
+
+local UI_OBJ=uiCreate()
 local function uiSetStatus(s)
-    pcall(function() UI_OBJ.Status.Text = "Status: "..s end)
+    pcall(function() UI_OBJ.Status.Text="Status: "..s end)
 end
-local function uiSetFoundServer(jobid, serverName)
+
+local function uiSetFoundServer(jobid,serverName)
     pcall(function()
-        UI_OBJ.Status.Text = "Found server. Hopping"
-        local t = Instance.new("TextLabel", UI_OBJ.Inner)
-        t.Size = UDim2.new(1, -10, 0, 20)
-        t.Position = UDim2.new(0,5,0,116)
-        t.Text = "Jobid (New server): ".. tostring(jobid) .. " | Server: ".. tostring(serverName)
-        t.TextColor3 = Color3.fromRGB(34,177,76)
-        t.BackgroundTransparency = 1
-        t.TextWrapped = true
-        t.TextSize = 12
-        t.Font = Enum.Font.SourceSans
-        t.TextStrokeTransparency = 0
-        t.TextStrokeColor3 = Color3.fromRGB(0,0,0)
+        UI_OBJ.Status.Text="Found server. Hopping"
+        local t=Instance.new("TextLabel",UI_OBJ.Inner)
+        t.Size=UDim2.new(1,-10,0,20)
+        t.Position=UDim2.new(0,5,0,116)
+        t.Text="Jobid (New server): "..tostring(jobid).." | Server: "..tostring(serverName)
+        t.TextColor3=Color3.fromRGB(34,177,76)
+        t.BackgroundTransparency=1
+        t.TextWrapped=true
+        t.TextSize=12
+        t.Font=Enum.Font.SourceSans
+        t.TextStrokeTransparency=0
+        t.TextStrokeColor3=Color3.fromRGB(0,0,0)
         delay(6,function() pcall(function() t:Destroy() end) end)
     end)
 end
+
 local function TrySelectTeam(teamName)
     if not teamName then return end
     uiSetStatus("Joining team...")
     for i=1,8 do
         pcall(function()
             if ReplicatedStorage and ReplicatedStorage.Remotes and ReplicatedStorage.Remotes.CommF_ then
-                ReplicatedStorage.Remotes.CommF_:InvokeServer("SetTeam", tostring(teamName))
+                ReplicatedStorage.Remotes.CommF_:InvokeServer("SetTeam",tostring(teamName))
             end
         end)
         task.wait(0.6)
-        if LocalPlayer.Team and LocalPlayer.Team.Name == tostring(teamName) then
+        if LocalPlayer.Team and LocalPlayer.Team.Name==tostring(teamName) then
             uiSetStatus("Team joined: "..tostring(teamName))
             return true
         end
@@ -273,53 +283,57 @@ local function TrySelectTeam(teamName)
     uiSetStatus("Team join failed")
     return false
 end
+
 local function findMatchingRecordsAndHop()
     uiSetStatus("Fetching API...")
-    local data = GetApiBossList()
-    if #data == 0 then uiSetStatus("No API data") return false end
-    local recs = findMatchingRecords(data, getgenv().Config.Boss)
-    if #recs == 0 then uiSetStatus("No matching boss in API") return false end
+    local data=GetApiBossList()
+    if #data==0 then uiSetStatus("No API data") return false end
+    local recs=findMatchingRecords(data,getgenv().Config.Boss)
+    if #recs==0 then uiSetStatus("No matching boss in API") return false end
     for _,rec in ipairs(recs) do
-        uiSetFoundServer(rec.Jobid, rec.Server or "Unknown")
-        local ok,err = HopToJobInstance(rec.Jobid)
+        uiSetFoundServer(rec.Jobid,rec.Server or "Unknown")
+        local ok,err=HopToJobInstance(rec.Jobid)
         if ok then return true end
         task.wait(0.6)
     end
     uiSetStatus("No available jobid to hop")
     return false
 end
+
 local function ensureWorldAndHop()
-    local targetW = targetWorldForBoss(getgenv().Config.Boss)
+    local targetW=targetWorldForBoss(getgenv().Config.Boss)
     if targetW then
-        local cw = currentWorld()
-        if cw ~= targetW then
+        local cw=currentWorld()
+        if cw~=targetW then
             uiSetStatus("Teleporting to "..targetW)
-            local pid = PLACE_WORLD[targetW]
+            local pid=PLACE_WORLD[targetW]
             if pid then TeleportToWorld(pid) return true end
         end
     end
-    local hopped = findMatchingRecordsAndHop()
-    return hopped
+    return findMatchingRecordsAndHop()
 end
+
 TrySelectTeam(getgenv().Team)
 spawn(function()
-    local start = tick()
+    local start=tick()
     while task.wait(0.1) and tick()-start<=5 do
         topos(CFrame.new(923,125,32853))
     end
 end)
+
 spawn(function()
     while task.wait(3) do
         TrySelectTeam(getgenv().Team)
-        local succeeded = ensureWorldAndHop()
+        local succeeded=ensureWorldAndHop()
         if succeeded then break end
     end
 end)
+
 Workspace.Enemies.ChildRemoved:Connect(function(child)
     if not child or not child.Name then return end
-    local cfg = tostring(getgenv().Config.Boss)
+    local cfg=tostring(getgenv().Config.Boss)
     if string.lower(cfg):find("cursed") then
-        if child.Name == "Cursed Captain" then
+        if child.Name=="Cursed Captain" then
             uiSetStatus("Boss died")
             if HasItem("Hellfire Torch") then
                 task.wait(2)
@@ -329,14 +343,15 @@ Workspace.Enemies.ChildRemoved:Connect(function(child)
         end
     end
 end)
+
 spawn(function()
     while task.wait(0.8) do
-        local bossName = tostring(getgenv().Config.Boss)
-        if currentWorld() == "World2" and string.find(string.lower(bossName),"cursed") then
-            local b = Workspace.Enemies:FindFirstChild("Cursed Captain")
+        local bossName=tostring(getgenv().Config.Boss)
+        if currentWorld()=="World2" and string.find(string.lower(bossName),"cursed") then
+            local b=Workspace.Enemies:FindFirstChild("Cursed Captain")
             if b and b.Parent and b:FindFirstChild("Humanoid") and b.Humanoid.Health>0 then
                 uiSetStatus("Attack boss")
-                FastAttackOnModel(b, 45)
+                FastAttackOnModel(b,45)
                 repeat task.wait(1) until not b.Parent or b.Humanoid.Health<=0
                 task.wait(0.8)
                 if HasItem("Hellfire Torch") then
