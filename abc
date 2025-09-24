@@ -6,7 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CoreGui = game:GetService("CoreGui")
 local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
-if not getgenv().Config then getgenv().Config = { Weapon = "Melee", Boss = "Rip Indra" } end
+if not getgenv().Config then getgenv().Config = { Weapon = "Melee", Boss = "Cursed Captain" } end
 if not getgenv().Team then getgenv().Team = "Marines" end
 local PLACE_WORLD = { World1 = 2753915549, World2 = 4442272183, World3 = 7449423635 }
 local function currentWorld()
@@ -63,9 +63,7 @@ local function FastAttackOnModel(model, yOffset)
         if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("Humanoid") then return end
         local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
         local prevPlatform = nil
-        if humanoid then
-            pcall(function() prevPlatform = humanoid.PlatformStand end)
-        end
+        if humanoid then pcall(function() prevPlatform = humanoid.PlatformStand end)
         if humanoid then pcall(function() humanoid.PlatformStand = true end) end
         while model and model.Parent and model:FindFirstChild("Humanoid") and model.Humanoid.Health > 0 do
             task.wait(0.1)
@@ -271,24 +269,17 @@ local function TrySelectTeam(teamName)
             uiSetStatus("Team joined: "..tostring(teamName))
             return true
         end
-        pcall(function() if ReplicatedStorage and ReplicatedStorage.Remotes and ReplicatedStorage.Remotes.CommF_ then ReplicatedStorage.Remotes.CommF_:InvokeServer("join"..tostring(teamName)) end end)
-        task.wait(0.6)
-        if LocalPlayer.Team and LocalPlayer.Team.Name == tostring(teamName) then
-            uiSetStatus("Team joined: "..tostring(teamName))
-            return true
-        end
     end
     uiSetStatus("Team join failed")
     return false
 end
 local function findMatchingRecordsAndHop()
-    uiSetStatus("Finding server...")
+    uiSetStatus("Fetching API...")
     local data = GetApiBossList()
     if #data == 0 then uiSetStatus("No API data") return false end
     local recs = findMatchingRecords(data, getgenv().Config.Boss)
     if #recs == 0 then uiSetStatus("No matching boss in API") return false end
     for _,rec in ipairs(recs) do
-        uiSetStatus("Found server. Hopping")
         uiSetFoundServer(rec.Jobid, rec.Server or "Unknown")
         local ok,err = HopToJobInstance(rec.Jobid)
         if ok then return true end
@@ -312,8 +303,13 @@ local function ensureWorldAndHop()
 end
 TrySelectTeam(getgenv().Team)
 spawn(function()
+    local start = tick()
+    while task.wait(0.1) and tick()-start<=5 do
+        topos(CFrame.new(923,125,32853))
+    end
+end)
+spawn(function()
     while task.wait(3) do
-        if not getgenv().Config or not getgenv().Config.Boss then task.wait(1) end
         TrySelectTeam(getgenv().Team)
         local succeeded = ensureWorldAndHop()
         if succeeded then break end
@@ -322,11 +318,7 @@ end)
 Workspace.Enemies.ChildRemoved:Connect(function(child)
     if not child or not child.Name then return end
     local cfg = tostring(getgenv().Config.Boss)
-    if string.lower(cfg):find("rip") then
-        if child.Name == "rip_indra" or child.Name == "rip_indra True Form" then uiSetStatus("Boss died") end
-    elseif string.lower(cfg):find("dough") then
-        if child.Name == "Dough King" then uiSetStatus("Boss died") end
-    elseif string.lower(cfg):find("cursed") then
+    if string.lower(cfg):find("cursed") then
         if child.Name == "Cursed Captain" then
             uiSetStatus("Boss died")
             if HasItem("Hellfire Torch") then
@@ -340,45 +332,21 @@ end)
 spawn(function()
     while task.wait(0.8) do
         local bossName = tostring(getgenv().Config.Boss)
-        if currentWorld() == "World3" then
-            if string.find(string.lower(bossName),"rip") then
-                local b = Workspace.Enemies:FindFirstChild("rip_indra True Form") or Workspace.Enemies:FindFirstChild("rip_indra")
-                if b and b.Parent and b:FindFirstChild("Humanoid") and b.Humanoid.Health>0 then
-                    uiSetStatus("Attack boss")
-                    FastAttackOnModel(b, 35)
-                    repeat task.wait(1) until not b.Parent or b.Humanoid.Health<=0
-                    task.wait(0.6)
-                    topos(CFrame.new(-2009.28,4532.972,-14937.308))
+        if currentWorld() == "World2" and string.find(string.lower(bossName),"cursed") then
+            local b = Workspace.Enemies:FindFirstChild("Cursed Captain")
+            if b and b.Parent and b:FindFirstChild("Humanoid") and b.Humanoid.Health>0 then
+                uiSetStatus("Attack boss")
+                FastAttackOnModel(b, 45)
+                repeat task.wait(1) until not b.Parent or b.Humanoid.Health<=0
+                task.wait(0.8)
+                if HasItem("Hellfire Torch") then
+                    uiSetStatus("Farm Ectoplasm...")
+                    FarmAndBuyEctoplasmLoop()
                 end
-            elseif string.find(string.lower(bossName),"dough") then
-                local b = Workspace.Enemies:FindFirstChild("Dough King")
-                if b and b.Parent and b:FindFirstChild("Humanoid") and b.Humanoid.Health>0 then
-                    uiSetStatus("Attack boss")
-                    FastAttackOnModel(b, 35)
-                    repeat task.wait(1) until not b.Parent or b.Humanoid.Health<=0
-                    task.wait(0.6)
-                    topos(CFrame.new(-2009.28,4532.972,-14937.308))
-                else
-                    topos(CFrame.new(-2009.28,4532.972,-14937.308))
-                end
-            end
-        elseif currentWorld() == "World2" then
-            if string.find(string.lower(bossName),"cursed") then
-                local b = Workspace.Enemies:FindFirstChild("Cursed Captain")
-                if b and b.Parent and b:FindFirstChild("Humanoid") and b.Humanoid.Health>0 then
-                    uiSetStatus("Attack boss")
-                    FastAttackOnModel(b, 45)
-                    repeat task.wait(1) until not b.Parent or b.Humanoid.Health<=0
-                    task.wait(0.8)
-                    if HasItem("Hellfire Torch") then
-                        uiSetStatus("Farm Ectoplasm...")
-                        FarmAndBuyEctoplasmLoop()
-                    end
-                    topos(CFrame.new(923,125,32853))
-                else
-                    uiSetStatus("Going to Cursed Ship")
-                    topos(CFrame.new(923,125,32853))
-                end
+                topos(CFrame.new(923,125,32853))
+            else
+                uiSetStatus("Fetching API...")
+                topos(CFrame.new(923,125,32853))
             end
         end
     end
