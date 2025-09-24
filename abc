@@ -3,10 +3,11 @@ local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local LocalPlayer = Players.LocalPlayer
+local CoreGui = game:GetService("CoreGui")
 local Workspace = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
 if not getgenv().Config then
-    getgenv().Config = { Weapon = "Melee", Boss = "Rip Indra" }
+    getgenv().Config = { Weapon = "Melee", Boss = "Rip Indra", Team = "Marines" }
 end
 local PLACE_WORLD = { World1 = 2753915549, World2 = 4442272183, World3 = 7449423635 }
 local function currentWorld()
@@ -17,10 +18,10 @@ local function currentWorld()
     return nil
 end
 local function targetWorldForBoss(bossName)
-    local n = string.lower(bossName)
-    if n == "rip indra" or n == "rip_indra" or n == "rip_indra true form" or n == "rip_indra trueform" then return "World3" end
-    if n == "dough king" or n == "dough_king" then return "World3" end
-    if n == "cursed captain" or n == "cursed_captain" then return "World2" end
+    local n = string.lower(tostring(bossName))
+    if n:find("rip") then return "World3" end
+    if n:find("dough") then return "World3" end
+    if n:find("cursed") then return "World2" end
     return nil
 end
 local MeleeList = {
@@ -48,6 +49,16 @@ local function EquipPreferred()
         end
     end
 end
+local function TrySelectTeam(teamName)
+    pcall(function()
+        if not teamName then return end
+        local tn = tostring(teamName)
+        local ok, _ = pcall(function() ReplicatedStorage.Remotes.CommF_:InvokeServer("SetTeam", tn) end)
+        if not ok then
+            pcall(function() ReplicatedStorage.Remotes.CommF_:InvokeServer("join"..tn) end)
+        end
+    end)
+end
 local function AutoHaki()
     pcall(function() if LocalPlayer.Character and not LocalPlayer.Character:FindFirstChild("HasBuso") then ReplicatedStorage.Remotes.CommF_:InvokeServer("Buso") end end)
 end
@@ -69,12 +80,10 @@ local function FastAttackOnModel(model, yOffset)
                 if model:FindFirstChild("HumanoidRootPart") then
                     model.HumanoidRootPart.CanCollide = false
                     pcall(function() model.Humanoid.WalkSpeed = 0 end)
-                    local offset = CFrame.new(0, (yOffset or 10), 0)
+                    local offset = CFrame.new(0, (yOffset or 15), 0)
                     local targetCFrame = model.HumanoidRootPart.CFrame * offset
                     topos(targetCFrame)
-                    if char:FindFirstChild("HumanoidRootPart") then
-                        pcall(function() char.HumanoidRootPart.AssemblyLinearVelocity = Vector3.new(0,0,0) end)
-                    end
+                    pcall(function() char.HumanoidRootPart.AssemblyLinearVelocity = Vector3.new(0,0,0) end)
                     local weapon
                     for _,it in ipairs(char:GetChildren()) do if it:IsA("Tool") then weapon = it break end end
                     if weapon and weapon:FindFirstChild("LeftClickRemote") then
@@ -83,7 +92,10 @@ local function FastAttackOnModel(model, yOffset)
                     else
                         local ok,atk = pcall(function() return ReplicatedStorage.Modules.Net["RE/RegisterAttack"] end)
                         local ok2,hit = pcall(function() return ReplicatedStorage.Modules.Net["RE/RegisterHit"] end)
-                        pcall(function() if atk then atk:FireServer(0.1) end if hit and model:FindFirstChild("Head") then hit:FireServer(model.Head, {{model, model.Head}}) end end)
+                        pcall(function()
+                            if atk then atk:FireServer(0.1) end
+                            if hit and model:FindFirstChild("Head") then hit:FireServer(model.Head, {{model, model.Head}}) end
+                        end)
                     end
                 end
             end)
@@ -112,7 +124,7 @@ local function FarmAndBuyEctoplasmLoop()
                     if mob:FindFirstChild("HumanoidRootPart") then
                         mob.HumanoidRootPart.CanCollide=false
                         pcall(function() mob.Humanoid.WalkSpeed=0 end)
-                        local targetCFrame = mob.HumanoidRootPart.CFrame * CFrame.new(0,15,0)
+                        local targetCFrame = mob.HumanoidRootPart.CFrame * CFrame.new(0,18,0)
                         topos(targetCFrame)
                         pcall(function() LocalPlayer.Character.HumanoidRootPart.AssemblyLinearVelocity = Vector3.new(0,0,0) end)
                         safeClick()
@@ -124,7 +136,7 @@ local function FarmAndBuyEctoplasmLoop()
         task.wait(0.5)
     end
 end
-local JOBFILE = "JobId.txt"
+local JOBFILE = "JobIds.txt"
 local function jobidAlreadyUsed(id)
     if isfile and isfile(JOBFILE) then
         local s = readfile(JOBFILE)
@@ -168,74 +180,73 @@ end
 local function TeleportToWorld(placeId)
     pcall(function() TeleportService:Teleport(placeId, LocalPlayer) end)
 end
-local UI = Instance.new("ScreenGui")
-UI.ResetOnSpawn = false
-local Frame = Instance.new("Frame", UI)
-Frame.Size = UDim2.new(0,250,0,120)
-Frame.Position = UDim2.new(0.02,0,0.02,0)
-Frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
-Frame.BackgroundTransparency = 0.35
-Frame.BorderSizePixel = 0
-local Border = Instance.new("UICorner", Frame)
-Border.CornerRadius = UDim.new(0,8)
-local Outline = Instance.new("Frame", UI)
-Outline.Size = UDim2.new(0,254,0,124)
-Outline.Position = UDim2.new(0.0186,0,0.0186,0)
-Outline.BackgroundColor3 = Color3.fromRGB(34,177,76)
-Outline.BackgroundTransparency = 0
-Outline.ZIndex = Frame.ZIndex - 1
-local Title = Instance.new("TextLabel", Frame)
-Title.Size = UDim2.new(1,0,0,28)
-Title.Position = UDim2.new(0,0,0,4)
-Title.Text = "HuneIPA - Hop Boss"
-Title.TextColor3 = Color3.fromRGB(34,177,76)
-Title.BackgroundTransparency = 1
-Title.TextScaled = false
-Title.Font = Enum.Font.SourceSansBold
-Title.TextSize = 18
-Title.TextStrokeTransparency = 0
-Title.TextStrokeColor3 = Color3.fromRGB(0,0,0)
-local BossLabel = Instance.new("TextLabel", Frame)
-BossLabel.Size = UDim2.new(1,0,0,22)
-BossLabel.Position = UDim2.new(0,0,0,36)
-BossLabel.Text = "Boss: "..tostring(getgenv().Config.Boss)
-BossLabel.TextColor3 = Color3.fromRGB(34,177,76)
-BossLabel.BackgroundTransparency = 1
-BossLabel.TextScaled = false
-BossLabel.Font = Enum.Font.SourceSans
-BossLabel.TextSize = 16
-BossLabel.TextStrokeTransparency = 0
-BossLabel.TextStrokeColor3 = Color3.fromRGB(0,0,0)
-local StatusLabel = Instance.new("TextLabel", Frame)
-StatusLabel.Size = UDim2.new(1,0,0,40)
-StatusLabel.Position = UDim2.new(0,0,0,60)
-StatusLabel.Text = "Status: Idle"
-StatusLabel.TextColor3 = Color3.fromRGB(34,177,76)
-StatusLabel.BackgroundTransparency = 1
-StatusLabel.TextWrapped = true
-StatusLabel.TextScaled = false
-StatusLabel.Font = Enum.Font.SourceSans
-StatusLabel.TextSize = 14
-StatusLabel.TextStrokeTransparency = 0
-StatusLabel.TextStrokeColor3 = Color3.fromRGB(0,0,0)
-UI.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+local function uiCreate()
+    local gui = Instance.new("ScreenGui")
+    gui.ResetOnSpawn = false
+    gui.IgnoreGuiInset = true
+    gui.Name = "HuneIPA_HopBoss_UI"
+    local frame = Instance.new("Frame", gui)
+    frame.Size = UDim2.new(0,320,0,140)
+    frame.Position = UDim2.new(0.02,0,0.02,0)
+    frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+    frame.BackgroundTransparency = 0.35
+    frame.BorderSizePixel = 0
+    local corner = Instance.new("UICorner", frame)
+    corner.CornerRadius = UDim.new(0,8)
+    local outline = Instance.new("Frame", gui)
+    outline.Size = UDim2.new(0,324,0,144)
+    outline.Position = UDim2.new(0.019,0,0.019,0)
+    outline.BackgroundColor3 = Color3.fromRGB(34,177,76)
+    local title = Instance.new("TextLabel", frame)
+    title.Size = UDim2.new(1,0,0,30)
+    title.Position = UDim2.new(0,0,0,6)
+    title.Text = "HuneIPA - Hop Boss"
+    title.TextColor3 = Color3.fromRGB(34,177,76)
+    title.BackgroundTransparency = 1
+    title.TextStrokeTransparency = 0
+    title.TextStrokeColor3 = Color3.fromRGB(0,0,0)
+    title.Font = Enum.Font.SourceSansBold
+    title.TextSize = 18
+    local bossLabel = Instance.new("TextLabel", frame)
+    bossLabel.Size = UDim2.new(1,0,0,22)
+    bossLabel.Position = UDim2.new(0,0,0,40)
+    bossLabel.Text = "Boss: "..tostring(getgenv().Config.Boss)
+    bossLabel.TextColor3 = Color3.fromRGB(34,177,76)
+    bossLabel.BackgroundTransparency = 1
+    bossLabel.TextStrokeTransparency = 0
+    bossLabel.TextStrokeColor3 = Color3.fromRGB(0,0,0)
+    bossLabel.Font = Enum.Font.SourceSans
+    bossLabel.TextSize = 16
+    local status = Instance.new("TextLabel", frame)
+    status.Size = UDim2.new(1,0,0,68)
+    status.Position = UDim2.new(0,0,0,64)
+    status.Text = "Status: Idle"
+    status.TextColor3 = Color3.fromRGB(34,177,76)
+    status.BackgroundTransparency = 1
+    status.TextWrapped = true
+    status.TextStrokeTransparency = 0
+    status.TextStrokeColor3 = Color3.fromRGB(0,0,0)
+    status.Font = Enum.Font.SourceSans
+    status.TextSize = 14
+    gui.Parent = CoreGui
+    return {Gui = gui, Frame = frame, Title = title, BossLabel = bossLabel, Status = status}
+end
+local UI_OBJ = uiCreate()
 local function uiSetStatus(s)
-    pcall(function() StatusLabel.Text = "Status: "..s end)
+    pcall(function() UI_OBJ.Status.Text = "Status: "..s end)
 end
 local function uiSetFoundServer(jobid, serverName)
     pcall(function()
-        StatusLabel.Text = "Found server. Hopping"
-        local t = Instance.new("TextLabel", Frame)
-        t.Size = UDim2.new(1,0,0,16)
+        UI_OBJ.Status.Text = "Found server. Hopping"
+        local t = Instance.new("TextLabel", UI_OBJ.Frame)
+        t.Size = UDim2.new(1,0,0,32)
         t.Position = UDim2.new(0,0,0,100)
-        t.Text = "Jobid (New server): ".. tostring(jobid) .. "\nServer: ".. tostring(serverName)
+        t.Text = "Jobid (New server): ".. tostring(jobid) .. " | Server: ".. tostring(serverName)
         t.TextColor3 = Color3.fromRGB(34,177,76)
         t.BackgroundTransparency = 1
         t.TextWrapped = true
         t.TextSize = 12
         t.Font = Enum.Font.SourceSans
-        t.TextStrokeTransparency = 0
-        t.TextStrokeColor3 = Color3.fromRGB(0,0,0)
         delay(5,function() pcall(function() t:Destroy() end) end)
     end)
 end
@@ -268,6 +279,7 @@ local function ensureWorldAndHop()
     return hopped
 end
 spawn(function()
+    TrySelectTeam(getgenv().Team)
     while task.wait(3) do
         if not getgenv().Config or not getgenv().Config.Boss then task.wait(1) end
         local succeeded = ensureWorldAndHop()
@@ -276,32 +288,45 @@ spawn(function()
 end)
 Workspace.Enemies.ChildRemoved:Connect(function(child)
     if not child or not child.Name then return end
-    if string.lower(child.Name) == string.lower(getgenv().Config.Boss) or (string.lower(getgenv().Config.Boss) == "rip indra" and (child.Name == "rip_indra" or child.Name == "rip_indra True Form")) then
-        if string.lower(getgenv().Config.Boss) == "cursed captain" and HasItem("Hellfire Torch") then
-            task.wait(2)
-            uiSetStatus("Farm Ectoplasm...")
-            FarmAndBuyEctoplasmLoop()
+    local cfg = tostring(getgenv().Config.Boss)
+    if string.lower(cfg):find("rip") then
+        if child.Name == "rip_indra" or child.Name == "rip_indra True Form" then
+            uiSetStatus("Boss died")
+        end
+    elseif string.lower(cfg):find("dough") then
+        if child.Name == "Dough King" then uiSetStatus("Boss died") end
+    elseif string.lower(cfg):find("cursed") then
+        if child.Name == "Cursed Captain" then
+            uiSetStatus("Boss died")
+            if HasItem("Hellfire Torch") then
+                task.wait(2)
+                uiSetStatus("Farm Ectoplasm...")
+                FarmAndBuyEctoplasmLoop()
+            end
         end
     end
 end)
 spawn(function()
     while task.wait(0.8) do
-        local bossName = getgenv().Config.Boss
-        if not bossName then task.wait(1) end
+        local bossName = tostring(getgenv().Config.Boss)
         if currentWorld() == "World3" then
             if string.find(string.lower(bossName),"rip") then
                 local b = Workspace.Enemies:FindFirstChild("rip_indra True Form") or Workspace.Enemies:FindFirstChild("rip_indra")
                 if b and b.Parent and b:FindFirstChild("Humanoid") and b.Humanoid.Health>0 then
                     uiSetStatus("Attack boss")
-                    FastAttackOnModel(b, 25)
+                    FastAttackOnModel(b, 35)
                     repeat task.wait(1) until not b.Parent or b.Humanoid.Health<=0
+                    task.wait(0.6)
+                    topos(CFrame.new(-2009.28,4532.972,-14937.308))
                 end
             elseif string.find(string.lower(bossName),"dough") then
                 local b = Workspace.Enemies:FindFirstChild("Dough King")
                 if b and b.Parent and b:FindFirstChild("Humanoid") and b.Humanoid.Health>0 then
                     uiSetStatus("Attack boss")
-                    FastAttackOnModel(b, 25)
+                    FastAttackOnModel(b, 35)
                     repeat task.wait(1) until not b.Parent or b.Humanoid.Health<=0
+                    task.wait(0.6)
+                    topos(CFrame.new(-2009.28,4532.972,-14937.308))
                 else
                     topos(CFrame.new(-2009.28,4532.972,-14937.308))
                 end
@@ -311,13 +336,14 @@ spawn(function()
                 local b = Workspace.Enemies:FindFirstChild("Cursed Captain")
                 if b and b.Parent and b:FindFirstChild("Humanoid") and b.Humanoid.Health>0 then
                     uiSetStatus("Attack boss")
-                    FastAttackOnModel(b, 35)
+                    FastAttackOnModel(b, 45)
                     repeat task.wait(1) until not b.Parent or b.Humanoid.Health<=0
                     task.wait(0.8)
                     if HasItem("Hellfire Torch") then
                         uiSetStatus("Farm Ectoplasm...")
                         FarmAndBuyEctoplasmLoop()
                     end
+                    topos(CFrame.new(923,125,32853))
                 else
                     uiSetStatus("Going to Cursed Ship")
                     topos(CFrame.new(923,125,32853))
