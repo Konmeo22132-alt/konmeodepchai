@@ -321,14 +321,6 @@ spawn(function()
     end  
 end)  
   
-spawn(function()  
-    while task.wait(3) do  
-        TrySelectTeam(getgenv().Team)  
-        local succeeded=ensureWorldAndHop()  
-        if succeeded then break end  
-    end  
-end)  
-  
 Workspace.Enemies.ChildRemoved:Connect(function(child)  
     if not child or not child.Name then return end  
     local cfg=tostring(getgenv().Config.Boss)  
@@ -357,6 +349,7 @@ spawn(function()
                 if HasItem("Hellfire Torch") then  
                     uiSetStatus("Farm Ectoplasm...")  
                     FarmAndBuyEctoplasmLoop()  
+                    repeat task.wait(1) until not HasItem("Hellfire Torch")  
                 end  
                 topos(CFrame.new(923,125,32853))  
                 if not HasItem("Hellfire Torch") then  
@@ -366,7 +359,10 @@ spawn(function()
                 if not HasItem("Hellfire Torch") then  
                     uiSetStatus("Fetching API...")  
                     topos(CFrame.new(923,125,32853))  
-                    ensureWorldAndHop()  
+                    while not findMatchingRecordsAndHop() do  
+                        if HasItem("Hellfire Torch") then break end  
+                        task.wait(2)  
+                    end  
                 end  
             end  
         end  
