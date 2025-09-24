@@ -8,11 +8,7 @@ local Workspace = game:GetService("Workspace")
 if not getgenv().Config then
     getgenv().Config = { Weapon = "Melee", Boss = "Rip Indra" }
 end
-local PLACE_WORLD = {
-    World1 = 2753915549,
-    World2 = 4442272183,
-    World3 = 7449423635
-}
+local PLACE_WORLD = { World1 = 2753915549, World2 = 4442272183, World3 = 7449423635 }
 local function currentWorld()
     local pid = game.PlaceId
     if pid == PLACE_WORLD.World1 then return "World1" end
@@ -22,13 +18,9 @@ local function currentWorld()
 end
 local function targetWorldForBoss(bossName)
     local n = string.lower(bossName)
-    if n == "rip indra" or n == "rip_indra" or n == "rip_indra true form" or n == "rip_indra trueform" then
-        return "World3"
-    elseif n == "dough king" or n == "dough_king" then
-        return "World3"
-    elseif n == "cursed captain" or n == "cursed_captain" then
-        return "World2"
-    end
+    if n == "rip indra" or n == "rip_indra" or n == "rip_indra true form" or n == "rip_indra trueform" then return "World3" end
+    if n == "dough king" or n == "dough_king" then return "World3" end
+    if n == "cursed captain" or n == "cursed_captain" then return "World2" end
     return nil
 end
 local MeleeList = {
@@ -47,41 +39,25 @@ local function EquipPreferred()
     local backpack = LocalPlayer.Backpack
     if getgenv().Config.Weapon == "Melee" then
         for _,m in ipairs(MeleeList) do
-            if backpack:FindFirstChild(m) then
-                pcall(function() char.Humanoid:EquipTool(backpack[m]) end)
-                return
-            elseif char:FindFirstChild(m) then
-                return
-            end
+            if backpack:FindFirstChild(m) then pcall(function() char.Humanoid:EquipTool(backpack[m]) end) return end
+            if char:FindFirstChild(m) then return end
         end
     elseif getgenv().Config.Weapon == "Sword" then
         for _,tool in ipairs(backpack:GetChildren()) do
-            if tool:IsA("Tool") and tool.ToolTip == "Sword" then
-                pcall(function() char.Humanoid:EquipTool(tool) end)
-                return
-            end
+            if tool:IsA("Tool") and tool.ToolTip == "Sword" then pcall(function() char.Humanoid:EquipTool(tool) end) return end
         end
     end
 end
 local function AutoHaki()
-    pcall(function()
-        if LocalPlayer.Character and not LocalPlayer.Character:FindFirstChild("HasBuso") then
-            ReplicatedStorage.Remotes.CommF_:InvokeServer("Buso")
-        end
-    end)
+    pcall(function() if LocalPlayer.Character and not LocalPlayer.Character:FindFirstChild("HasBuso") then ReplicatedStorage.Remotes.CommF_:InvokeServer("Buso") end end)
 end
 local function topos(cf)
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        pcall(function() LocalPlayer.Character.HumanoidRootPart.CFrame = cf end)
-    end
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then pcall(function() LocalPlayer.Character.HumanoidRootPart.CFrame = cf end) end
 end
 local function safeClick()
-    pcall(function()
-        game:GetService("VirtualUser"):CaptureController()
-        game:GetService("VirtualUser"):Button1Down(Vector2.new())
-    end)
+    pcall(function() game:GetService("VirtualUser"):CaptureController() game:GetService("VirtualUser"):Button1Down(Vector2.new()) end)
 end
-local function FastAttackOnModel(model)
+local function FastAttackOnModel(model, yOffset)
     spawn(function()
         while model and model.Parent and model:FindFirstChild("Humanoid") and model.Humanoid.Health > 0 do
             task.wait(0.1)
@@ -93,7 +69,12 @@ local function FastAttackOnModel(model)
                 if model:FindFirstChild("HumanoidRootPart") then
                     model.HumanoidRootPart.CanCollide = false
                     pcall(function() model.Humanoid.WalkSpeed = 0 end)
-                    topos(model.HumanoidRootPart.CFrame * CFrame.new(0,10,0))
+                    local offset = CFrame.new(0, (yOffset or 10), 0)
+                    local targetCFrame = model.HumanoidRootPart.CFrame * offset
+                    topos(targetCFrame)
+                    if char:FindFirstChild("HumanoidRootPart") then
+                        pcall(function() char.HumanoidRootPart.AssemblyLinearVelocity = Vector3.new(0,0,0) end)
+                    end
                     local weapon
                     for _,it in ipairs(char:GetChildren()) do if it:IsA("Tool") then weapon = it break end end
                     if weapon and weapon:FindFirstChild("LeftClickRemote") then
@@ -102,12 +83,7 @@ local function FastAttackOnModel(model)
                     else
                         local ok,atk = pcall(function() return ReplicatedStorage.Modules.Net["RE/RegisterAttack"] end)
                         local ok2,hit = pcall(function() return ReplicatedStorage.Modules.Net["RE/RegisterHit"] end)
-                        pcall(function()
-                            if atk then atk:FireServer(0.1) end
-                            if hit and model:FindFirstChild("Head") then
-                                hit:FireServer(model.Head, {{model, model.Head}})
-                            end
-                        end)
+                        pcall(function() if atk then atk:FireServer(0.1) end if hit and model:FindFirstChild("Head") then hit:FireServer(model.Head, {{model, model.Head}}) end end)
                     end
                 end
             end)
@@ -136,7 +112,9 @@ local function FarmAndBuyEctoplasmLoop()
                     if mob:FindFirstChild("HumanoidRootPart") then
                         mob.HumanoidRootPart.CanCollide=false
                         pcall(function() mob.Humanoid.WalkSpeed=0 end)
-                        topos(mob.HumanoidRootPart.CFrame*CFrame.new(0,10,0))
+                        local targetCFrame = mob.HumanoidRootPart.CFrame * CFrame.new(0,15,0)
+                        topos(targetCFrame)
+                        pcall(function() LocalPlayer.Character.HumanoidRootPart.AssemblyLinearVelocity = Vector3.new(0,0,0) end)
                         safeClick()
                     end
                 until not mob.Parent or mob.Humanoid.Health<=0 or not HasItem("Hellfire Torch")
@@ -150,17 +128,18 @@ local JOBFILE = "JobId.txt"
 local function jobidAlreadyUsed(id)
     if isfile and isfile(JOBFILE) then
         local s = readfile(JOBFILE)
-        for line in s:gmatch("[^\r\n]+") do
-            if line == id then return true end
-        end
+        for line in s:gmatch("[^\r\n]+") do if line == id then return true end end
     end
     return false
 end
 local function appendJobId(id)
     if writefile then
-        local s = ""
-        if isfile and isfile(JOBFILE) then s = readfile(JOBFILE) .. "\n" end
-        writefile(JOBFILE, (s .. id .. "\n"))
+        if isfile and isfile(JOBFILE) then
+            local s = readfile(JOBFILE)
+            writefile(JOBFILE, (s .. "\n" .. id))
+        else
+            writefile(JOBFILE, id)
+        end
     end
 end
 local function GetApiBossList()
@@ -173,38 +152,106 @@ local function GetApiBossList()
 end
 local function findMatchingRecords(data, bossName)
     local res = {}
-    local target = string.lower(bossName)
     for _,v in ipairs(data) do
         if v and v.Type == "Boss" and v.Name and string.lower(v.Name) == string.lower(bossName) then
-            if v.Jobid and v.Jobid ~= "" and not jobidAlreadyUsed(v.Jobid) then
-                table.insert(res, v)
-            end
+            if v.Jobid and v.Jobid ~= "" and not jobidAlreadyUsed(v.Jobid) then table.insert(res, v) end
         end
     end
     table.sort(res, function(a,b) return (a.expireTime or 0) > (b.expireTime or 0) end)
     return res
 end
 local function HopToJobInstance(jobid)
-    local ok,err = pcall(function()
-        TeleportService:TeleportToPlaceInstance(game.PlaceId, jobid, LocalPlayer)
-    end)
-    if ok then
-        appendJobId(jobid)
-    end
+    local ok,err = pcall(function() TeleportService:TeleportToPlaceInstance(game.PlaceId, jobid, LocalPlayer) end)
+    if ok then appendJobId(jobid) end
     return ok, err
 end
 local function TeleportToWorld(placeId)
     pcall(function() TeleportService:Teleport(placeId, LocalPlayer) end)
 end
+local UI = Instance.new("ScreenGui")
+UI.ResetOnSpawn = false
+local Frame = Instance.new("Frame", UI)
+Frame.Size = UDim2.new(0,250,0,120)
+Frame.Position = UDim2.new(0.02,0,0.02,0)
+Frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+Frame.BackgroundTransparency = 0.35
+Frame.BorderSizePixel = 0
+local Border = Instance.new("UICorner", Frame)
+Border.CornerRadius = UDim.new(0,8)
+local Outline = Instance.new("Frame", UI)
+Outline.Size = UDim2.new(0,254,0,124)
+Outline.Position = UDim2.new(0.0186,0,0.0186,0)
+Outline.BackgroundColor3 = Color3.fromRGB(34,177,76)
+Outline.BackgroundTransparency = 0
+Outline.ZIndex = Frame.ZIndex - 1
+local Title = Instance.new("TextLabel", Frame)
+Title.Size = UDim2.new(1,0,0,28)
+Title.Position = UDim2.new(0,0,0,4)
+Title.Text = "HuneIPA - Hop Boss"
+Title.TextColor3 = Color3.fromRGB(34,177,76)
+Title.BackgroundTransparency = 1
+Title.TextScaled = false
+Title.Font = Enum.Font.SourceSansBold
+Title.TextSize = 18
+Title.TextStrokeTransparency = 0
+Title.TextStrokeColor3 = Color3.fromRGB(0,0,0)
+local BossLabel = Instance.new("TextLabel", Frame)
+BossLabel.Size = UDim2.new(1,0,0,22)
+BossLabel.Position = UDim2.new(0,0,0,36)
+BossLabel.Text = "Boss: "..tostring(getgenv().Config.Boss)
+BossLabel.TextColor3 = Color3.fromRGB(34,177,76)
+BossLabel.BackgroundTransparency = 1
+BossLabel.TextScaled = false
+BossLabel.Font = Enum.Font.SourceSans
+BossLabel.TextSize = 16
+BossLabel.TextStrokeTransparency = 0
+BossLabel.TextStrokeColor3 = Color3.fromRGB(0,0,0)
+local StatusLabel = Instance.new("TextLabel", Frame)
+StatusLabel.Size = UDim2.new(1,0,0,40)
+StatusLabel.Position = UDim2.new(0,0,0,60)
+StatusLabel.Text = "Status: Idle"
+StatusLabel.TextColor3 = Color3.fromRGB(34,177,76)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.TextWrapped = true
+StatusLabel.TextScaled = false
+StatusLabel.Font = Enum.Font.SourceSans
+StatusLabel.TextSize = 14
+StatusLabel.TextStrokeTransparency = 0
+StatusLabel.TextStrokeColor3 = Color3.fromRGB(0,0,0)
+UI.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+local function uiSetStatus(s)
+    pcall(function() StatusLabel.Text = "Status: "..s end)
+end
+local function uiSetFoundServer(jobid, serverName)
+    pcall(function()
+        StatusLabel.Text = "Found server. Hopping"
+        local t = Instance.new("TextLabel", Frame)
+        t.Size = UDim2.new(1,0,0,16)
+        t.Position = UDim2.new(0,0,0,100)
+        t.Text = "Jobid (New server): ".. tostring(jobid) .. "\nServer: ".. tostring(serverName)
+        t.TextColor3 = Color3.fromRGB(34,177,76)
+        t.BackgroundTransparency = 1
+        t.TextWrapped = true
+        t.TextSize = 12
+        t.Font = Enum.Font.SourceSans
+        t.TextStrokeTransparency = 0
+        t.TextStrokeColor3 = Color3.fromRGB(0,0,0)
+        delay(5,function() pcall(function() t:Destroy() end) end)
+    end)
+end
 local function pickAndHopFromApi()
+    uiSetStatus("Finding server...")
     local data = GetApiBossList()
-    if #data == 0 then return false end
+    if #data == 0 then uiSetStatus("No API data") return false end
     local recs = findMatchingRecords(data, getgenv().Config.Boss)
-    if #recs == 0 then return false end
+    if #recs == 0 then uiSetStatus("No matching boss in API") return false end
     for _,rec in ipairs(recs) do
+        uiSetStatus("Found server. Hopping")
+        uiSetFoundServer(rec.Jobid, rec.Server or "Unknown")
         local ok,err = HopToJobInstance(rec.Jobid)
         if ok then return true end
     end
+    uiSetStatus("No available jobid to hop")
     return false
 end
 local function ensureWorldAndHop()
@@ -212,11 +259,9 @@ local function ensureWorldAndHop()
     if targetW then
         local cw = currentWorld()
         if cw ~= targetW then
+            uiSetStatus("Teleporting to "..targetW)
             local pid = PLACE_WORLD[targetW]
-            if pid then
-                TeleportToWorld(pid)
-                return true
-            end
+            if pid then TeleportToWorld(pid) return true end
         end
     end
     local hopped = pickAndHopFromApi()
@@ -229,41 +274,55 @@ spawn(function()
         if succeeded then break end
     end
 end)
-local function AttackLoopController()
+Workspace.Enemies.ChildRemoved:Connect(function(child)
+    if not child or not child.Name then return end
+    if string.lower(child.Name) == string.lower(getgenv().Config.Boss) or (string.lower(getgenv().Config.Boss) == "rip indra" and (child.Name == "rip_indra" or child.Name == "rip_indra True Form")) then
+        if string.lower(getgenv().Config.Boss) == "cursed captain" and HasItem("Hellfire Torch") then
+            task.wait(2)
+            uiSetStatus("Farm Ectoplasm...")
+            FarmAndBuyEctoplasmLoop()
+        end
+    end
+end)
+spawn(function()
     while task.wait(0.8) do
         local bossName = getgenv().Config.Boss
         if not bossName then task.wait(1) end
         if currentWorld() == "World3" then
-            if string.lower(bossName) == "rip indra" or string.lower(bossName) == "rip_indra" then
+            if string.find(string.lower(bossName),"rip") then
                 local b = Workspace.Enemies:FindFirstChild("rip_indra True Form") or Workspace.Enemies:FindFirstChild("rip_indra")
                 if b and b.Parent and b:FindFirstChild("Humanoid") and b.Humanoid.Health>0 then
-                    FastAttackOnModel(b)
+                    uiSetStatus("Attack boss")
+                    FastAttackOnModel(b, 25)
                     repeat task.wait(1) until not b.Parent or b.Humanoid.Health<=0
                 end
-            elseif string.lower(bossName) == "dough king" then
+            elseif string.find(string.lower(bossName),"dough") then
                 local b = Workspace.Enemies:FindFirstChild("Dough King")
                 if b and b.Parent and b:FindFirstChild("Humanoid") and b.Humanoid.Health>0 then
-                    FastAttackOnModel(b)
+                    uiSetStatus("Attack boss")
+                    FastAttackOnModel(b, 25)
                     repeat task.wait(1) until not b.Parent or b.Humanoid.Health<=0
                 else
                     topos(CFrame.new(-2009.28,4532.972,-14937.308))
                 end
             end
         elseif currentWorld() == "World2" then
-            if string.lower(bossName) == "cursed captain" then
+            if string.find(string.lower(bossName),"cursed") then
                 local b = Workspace.Enemies:FindFirstChild("Cursed Captain")
                 if b and b.Parent and b:FindFirstChild("Humanoid") and b.Humanoid.Health>0 then
-                    FastAttackOnModel(b)
+                    uiSetStatus("Attack boss")
+                    FastAttackOnModel(b, 35)
                     repeat task.wait(1) until not b.Parent or b.Humanoid.Health<=0
-                    task.wait(1)
+                    task.wait(0.8)
                     if HasItem("Hellfire Torch") then
+                        uiSetStatus("Farm Ectoplasm...")
                         FarmAndBuyEctoplasmLoop()
                     end
                 else
+                    uiSetStatus("Going to Cursed Ship")
                     topos(CFrame.new(923,125,32853))
                 end
             end
         end
     end
-end
-spawn(AttackLoopController)
+end)
