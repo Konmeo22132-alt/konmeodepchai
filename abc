@@ -70,7 +70,7 @@ local function FastAttackOnModel(model, yOffset)
         if humanoid then
             local prevPlatform = humanoid.PlatformStand
             humanoid.PlatformStand = true
-            while model and model.Parent and model:FindFirstChild("Humanoid") do
+            while model and model.Parent and model:FindFirstChild("Humanoid") and model.Humanoid.Health>0 do
                 task.wait(0.1)
                 pcall(function()
                     AutoHaki()
@@ -119,7 +119,7 @@ local function FarmAndBuyEctoplasmLoop()
     local farmPos=CFrame.new(911.35827636719,125.95812988281,33159.5390625)
     while HasItem("Hellfire Torch") do
         for _,mob in ipairs(Workspace.Enemies:GetChildren()) do
-            if mob and mobs[mob.Name] and mob:FindFirstChild("Humanoid") then
+            if mob and mobs[mob.Name] and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health>0 then
                 repeat task.wait(0.1)
                     AutoHaki()
                     EquipPreferred()
@@ -129,7 +129,7 @@ local function FarmAndBuyEctoplasmLoop()
                         topos(mob.HumanoidRootPart.CFrame*CFrame.new(0,18,0))
                         pcall(function() LocalPlayer.Character.HumanoidRootPart.AssemblyLinearVelocity=Vector3.new(0,0,0) end)
                     end
-                until not mob.Parent or not HasItem("Hellfire Torch")
+                until not mob.Parent or mob.Humanoid.Health<=0 or not HasItem("Hellfire Torch")
             end
         end
         topos(farmPos)
@@ -285,19 +285,20 @@ local function TrySelectTeam(teamName)
 end
 
 local function findMatchingRecordsAndHop()
-    uiSetStatus("Fetching API...")
-    local data=GetApiBossList()
-    if #data==0 then uiSetStatus("No API data") return false end
-    local recs=findMatchingRecords(data,getgenv().Config.Boss)
-    if #recs==0 then uiSetStatus("No matching boss in API") return false end
-    for _,rec in ipairs(recs) do
-        uiSetFoundServer(rec.Jobid,rec.Server or "Unknown")
-        local ok,err=HopToJobInstance(rec.Jobid)
-        if ok then return true end
-        task.wait(0.6)
+    while true do
+        uiSetStatus("Fetching API...")
+        local data=GetApiBossList()
+        if #data==0 then uiSetStatus("No API data") task.wait(5) continue end
+        local recs=findMatchingRecords(data,getgenv().Config.Boss)
+        if #recs==0 then uiSetStatus("No matching boss in API") task.wait(5) continue end
+        for _,rec in ipairs(recs) do
+            uiSetFoundServer(rec.Jobid,rec.Server or "Unknown")
+            local ok,err=HopToJobInstance(rec.Jobid)
+            if ok then return true end
+            task.wait(0.6)
+        end
+        uiSetStatus("No available jobid to hop") task.wait(5)
     end
-    uiSetStatus("No available jobid to hop")
-    return false
 end
 
 local function ensureWorldAndHop()
@@ -314,7 +315,6 @@ local function ensureWorldAndHop()
 end
 
 TrySelectTeam(getgenv().Team)
-
 spawn(function()
     local start=tick()
     while task.wait(0.1) and tick()-start<=5 do
@@ -323,42 +323,43 @@ spawn(function()
 end)
 
 spawn(function()
-    task.wait(5)
-    local foundBoss=false
-    for i=1,10 do
-        local b=Workspace.Enemies:FindFirstChild("Cursed Captain")
-        if b and b.Parent then foundBoss=true break end
-        task.wait(1)
-    end
-    if not foundBoss and not HasItem("Hellfire Torch") then
-        ensureWorldAndHop()
+    TrySelectTeam(getgenv().Team)
+    ensureWorldAndHop()
+end)
+
+Workspace.Enemies.ChildRemoved:Connect(function(child)
+    if not child or not child.Name then return end
+    local cfg=tostring(getgenv().Config.Boss)
+    if string.lower(cfg):find("cursed") then
+        if child.Name=="Cursed Captain" then
+            uiSetStatus("Boss died")
+            if HasItem("Hellfire Torch") then
+                task.wait(2)
+                uiSetStatus("Farm Ectoplasm...")
+                FarmAndBuyEctoplasmLoop()
+            end
+        end
     end
 end)
 
 spawn(function()
     while task.wait(0.8) do
-        if HasItem("Hellfire Torch") then
-            uiSetStatus("Farm Ectoplasm...")
-            FarmAndBuyEctoplasmLoop()
-            if not HasItem("Hellfire Torch") then
-                ensureWorldAndHop()
-            end
-        else
-            local bossName=tostring(getgenv().Config.Boss)
-            if currentWorld()=="World2" and string.find(string.lower(bossName),"cursed") then
-                local b=Workspace.Enemies:FindFirstChild("Cursed Captain")
-                if b and b.Parent then
-                    uiSetStatus("Attack boss")
-                    FastAttackOnModel(b,45)
-                    repeat task.wait(1) until not b or not b.Parent
-                    if HasItem("Hellfire Torch") then
-                        uiSetStatus("Farm Ectoplasm...")
-                        FarmAndBuyEctoplasmLoop()
-                    end
-                    if not HasItem("Hellfire Torch") then
-                        ensureWorldAndHop()
-                    end
+        local bossName=tostring(getgenv().Config.Boss)
+        if currentWorld()=="World2" and string.find(string.lower(bossName),"cursed") then
+            local b=Workspace.Enemies:FindFirstChild("Cursed Captain")
+            if b and b.Parent and b:FindFirstChild("Humanoid") and b.Humanoid.Health>0 then
+                uiSetStatus("Attack boss")
+                FastAttackOnModel(b,45)
+                repeat task.wait(1) until not b.Parent or b.Humanoid.Health<=0
+                task.wait(0.8)
+                if HasItem("Hellfire Torch") then
+                    uiSetStatus("Farm Ectoplasm...")
+                    FarmAndBuyEctoplasmLoop()
                 end
+                topos(CFrame.new(923,125,32853))
+            else
+                uiSetStatus("Fetching API...")
+                topos(CFrame.new(923,125,32853))
             end
         end
     end
