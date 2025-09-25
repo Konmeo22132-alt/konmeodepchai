@@ -345,9 +345,10 @@ Workspace.Enemies.ChildRemoved:Connect(function(child)
 end)
 
 spawn(function()
-    while task.wait(0.8) do
+    while task.wait(2) do
         local bossName=tostring(getgenv().Config.Boss)
         if currentWorld()=="World2" and string.find(string.lower(bossName),"cursed") then
+        task.wait(7)
             local b=Workspace.Enemies:FindFirstChild("Cursed Captain")
             if b and b.Parent and b:FindFirstChild("Humanoid") and b.Humanoid.Health>0 then
                 uiSetStatus("Attack boss")
