@@ -285,20 +285,19 @@ local function TrySelectTeam(teamName)
 end
 
 local function findMatchingRecordsAndHop()
-    while true do
-        uiSetStatus("Fetching API...")
-        local data=GetApiBossList()
-        if #data==0 then uiSetStatus("No API data") task.wait(5) continue end
-        local recs=findMatchingRecords(data,getgenv().Config.Boss)
-        if #recs==0 then uiSetStatus("No matching boss in API") task.wait(5) continue end
-        for _,rec in ipairs(recs) do
-            uiSetFoundServer(rec.Jobid,rec.Server or "Unknown")
-            local ok,err=HopToJobInstance(rec.Jobid)
-            if ok then return true end
-            task.wait(0.6)
-        end
-        uiSetStatus("No available jobid to hop") task.wait(5)
+    uiSetStatus("Fetching API...")
+    local data=GetApiBossList()
+    if #data==0 then uiSetStatus("No API data") return false end
+    local recs=findMatchingRecords(data,getgenv().Config.Boss)
+    if #recs==0 then uiSetStatus("No matching boss in API") return false end
+    for _,rec in ipairs(recs) do
+        uiSetFoundServer(rec.Jobid,rec.Server or "Unknown")
+        local ok,err=HopToJobInstance(rec.Jobid)
+        if ok then return true end
+        task.wait(0.6)
     end
+    uiSetStatus("No available jobid to hop")
+    return false
 end
 
 local function ensureWorldAndHop()
@@ -323,8 +322,11 @@ spawn(function()
 end)
 
 spawn(function()
-    TrySelectTeam(getgenv().Team)
-    ensureWorldAndHop()
+    while task.wait(3) do
+        TrySelectTeam(getgenv().Team)
+        local succeeded=ensureWorldAndHop()
+        if succeeded then break end
+    end
 end)
 
 Workspace.Enemies.ChildRemoved:Connect(function(child)
@@ -358,8 +360,18 @@ spawn(function()
                 end
                 topos(CFrame.new(923,125,32853))
             else
-                uiSetStatus("Fetching API...")
+                uiSetStatus("No boss found, checking API...")
                 topos(CFrame.new(923,125,32853))
+                spawn(function()
+                    while task.wait(5) do
+                        local b2=Workspace.Enemies:FindFirstChild("Cursed Captain")
+                        if b2 and b2:FindFirstChild("Humanoid") and b2.Humanoid.Health>0 then
+                            break
+                        end
+                        local ok=ensureWorldAndHop()
+                        if ok then break end
+                    end
+                end)
             end
         end
     end
