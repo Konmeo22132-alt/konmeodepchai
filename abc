@@ -11,6 +11,7 @@ if not getgenv().Config then
     getgenv().Config = {Weapon = "Melee", Boss = "Cursed Captain"}
 end
 if not getgenv().Team then getgenv().Team = "Marines" end
+if getgenv().FarmActive==nil then getgenv().FarmActive=true end
 
 local PLACE_WORLD = {World1=2753915549, World2=4442272183, World3=7449423635}
 local JOBFILE = "JobIds.txt"
@@ -61,6 +62,7 @@ local function AutoHaki()
 end
 
 local function topos(cf)
+    if not getgenv().FarmActive then return end
     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
         pcall(function() LocalPlayer.Character:PivotTo(cf) end)
     end
@@ -73,7 +75,7 @@ local function FastAttackOnModel(model, yOffset)
         if humanoid then
             local prevPlatform = humanoid.PlatformStand
             humanoid.PlatformStand = true
-            while model and model.Parent and model:FindFirstChild("Humanoid") do
+            while model and model.Parent and model:FindFirstChild("Humanoid") and getgenv().FarmActive do
                 task.wait(0.1)
                 pcall(function()
                     AutoHaki()
@@ -109,7 +111,7 @@ end
 
 local function FarmAndBuyEctoplasmLoop()
     spawn(function()
-        while HasItem("Hellfire Torch") do
+        while getgenv().FarmActive and HasItem("Hellfire Torch") do
             local args1 = {"Ectoplasm","BuyCheck",4}
             local args2 = {"Ectoplasm","Change",4}
             pcall(function() ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args1)) end)
@@ -119,8 +121,9 @@ local function FarmAndBuyEctoplasmLoop()
         end
     end)
 
-    while HasItem("Hellfire Torch") do
+    while getgenv().FarmActive and HasItem("Hellfire Torch") do
         for _, mobName in ipairs(MMon) do
+            if not getgenv().FarmActive then break end
             local sameMobs = {}
             for _, mob in ipairs(Workspace.Enemies:GetChildren()) do
                 if mob and mob.Name == mobName and mob:FindFirstChild("Humanoid") and mob:FindFirstChild("HumanoidRootPart") then
@@ -128,7 +131,7 @@ local function FarmAndBuyEctoplasmLoop()
                 end
             end
 
-            if #sameMobs > 0 then
+            if #sameMobs > 0 and getgenv().FarmActive then
                 local bringPos = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart.CFrame or MPos
                 for _, mob in ipairs(sameMobs) do
                     spawn(function()
@@ -142,6 +145,7 @@ local function FarmAndBuyEctoplasmLoop()
 
                 repeat
                     task.wait(0.1)
+                    if not getgenv().FarmActive then break end
                     AutoHaki()
                     EquipPreferred()
                     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and sameMobs[1] and sameMobs[1]:FindFirstChild("HumanoidRootPart") then
@@ -153,9 +157,10 @@ local function FarmAndBuyEctoplasmLoop()
                             table.remove(sameMobs,i)
                         end
                     end
-                until #sameMobs==0 or not HasItem("Hellfire Torch")
+                until #sameMobs==0 or not HasItem("Hellfire Torch") or not getgenv().FarmActive
             end
         end
+        if not getgenv().FarmActive then break end
         topos(MPos)
         task.wait(0.5)
     end
@@ -262,8 +267,62 @@ local function uiCreate()
     status.TextStrokeColor3=Color3.fromRGB(0,0,0)
     status.Font=Enum.Font.SourceSans
     status.TextSize=14
+
+    local btn = Instance.new("TextButton", inner)
+    btn.Size = UDim2.new(0,60,0,60)
+    btn.Position = UDim2.new(1,-70,0,10)
+    btn.AnchorPoint = Vector2.new(0,0)
+    btn.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    btn.Text = (getgenv().FarmActive and "Stop" or "Start")
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    btn.TextStrokeTransparency = 0
+    btn.TextStrokeColor3 = Color3.fromRGB(0,0,0)
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 16
+    btn.AutoButtonColor = true
+    local btnCorner = Instance.new("UICorner", btn)
+    btnCorner.CornerRadius = UDim.new(1,0)
+    local btnStroke = Instance.new("UIStroke", btn)
+    btnStroke.Color = Color3.fromRGB(0,0,0)
+    btnStroke.Thickness = 3
+
+    local dragging, dragInput, dragStart, startPos
+    btn.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = btn.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    btn.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+    local UserInputService = game:GetService("UserInputService")
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            btn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+    btn.MouseButton1Click:Connect(function()
+        if getgenv().FarmActive then
+            getgenv().FarmActive = false
+            btn.Text = "Start"
+        else
+            getgenv().FarmActive = true
+            btn.Text = "Stop"
+        end
+    end)
+
     gui.Parent=CoreGui
-    return {Gui=gui,Outer=outer,Inner=inner,Title=title,BossLabel=bossLabel,Status=status}
+    return {Gui=gui,Outer=outer,Inner=inner,Title=title,BossLabel=bossLabel,Status=status,Button=btn}
 end
 
 local UI_OBJ=uiCreate()
@@ -342,7 +401,7 @@ TrySelectTeam(getgenv().Team)
 spawn(function()
     local start=tick()
     while task.wait(0.1) and tick()-start<=5 do
-        topos(CFrame.new(923,125,32853))
+        if not getgenv().FarmActive then task.wait(0.1) else topos(CFrame.new(923,125,32853)) end
     end
 end)
 
@@ -354,14 +413,15 @@ spawn(function()
         if b and b.Parent then foundBoss=true break end
         task.wait(1)
     end
-    if not foundBoss and not HasItem("Hellfire Torch") then
+    if not foundBoss and not HasItem("Hellfire Torch") and getgenv().FarmActive then
         ensureWorldAndHop()
     end
 end)
 
 spawn(function()
     while task.wait(0.8) do
-        if HasItem("Hellfire Torch") then
+        if not getgenv().FarmActive then uiSetStatus("Paused") while not getgenv().FarmActive do task.wait(0.3) end end
+        if HasItem("Hellfire Torch") and getgenv().FarmActive then
             uiSetStatus("Farm Ectoplasm...")
             FarmAndBuyEctoplasmLoop()
             if not HasItem("Hellfire Torch") then
@@ -371,15 +431,15 @@ spawn(function()
             local bossName=tostring(getgenv().Config.Boss)
             if currentWorld()=="World2" and string.find(string.lower(bossName),"cursed") then
                 local b=Workspace.Enemies:FindFirstChild("Cursed Captain")
-                if b and b.Parent then
+                if b and b.Parent and getgenv().FarmActive then
                     uiSetStatus("Attack boss")
                     FastAttackOnModel(b,45)
-                    repeat task.wait(1) until not b or not b.Parent
-                    if HasItem("Hellfire Torch") then
+                    repeat task.wait(1) until not b or not b.Parent or not getgenv().FarmActive
+                    if HasItem("Hellfire Torch") and getgenv().FarmActive then
                         uiSetStatus("Farm Ectoplasm...")
                         FarmAndBuyEctoplasmLoop()
                     end
-                    if not HasItem("Hellfire Torch") then
+                    if not HasItem("Hellfire Torch") and getgenv().FarmActive then
                         ensureWorldAndHop()
                     end
                 end
