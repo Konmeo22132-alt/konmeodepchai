@@ -215,6 +215,105 @@ local function TeleportToWorld(placeId)
     pcall(function() TeleportService:Teleport(placeId,LocalPlayer) end)
 end
 
+local function parseIsoTime(s)
+    if not s then return nil end
+    local y,m,d,h,min,sec = s:match("^(%d+)%-(%d+)%-(%d+)T(%d+):(%d+):(%d+)")
+    if not y then
+        y,m,d,h,min,sec = s:match("^(%d+)%/(%d+)%/(%d+)%s+(%d+):(%d+):(%d+)")
+    end
+    if not y then return nil end
+    local t = {year=tonumber(y), month=tonumber(m), day=tonumber(d), hour=tonumber(h), min=tonumber(min), sec=tonumber(sec)}
+    return os.time(t)
+end
+
+local function GetRobloxServerList(placeId, limit)
+    limit = limit or 100
+    local url = "https://games.roblox.com/v1/games/"..tostring(placeId).."/servers/Public?sortOrder=Desc&limit="..tostring(limit)
+    local ok,res = pcall(function() return game:HttpGet(url) end)
+    if not ok or not res then return {} end
+    local ok2,data = pcall(function() return HttpService:JSONDecode(res) end)
+    if not ok2 or type(data)~="table" or not data.data then return {} end
+    return data.data
+end
+
+local function HopToRobloxServer(placeId)
+    local servers = GetRobloxServerList(placeId,100)
+    if #servers==0 then return false end
+    local cutoff = os.time() - (75*60)
+    local candidates = {}
+    for _,s in ipairs(servers) do
+        local playing = s.playing or s.players or s.playCount or 0
+        local maxPlayers = s.maxPlayers or s.max or 0
+        local created = parseIsoTime(s.updated) or parseIsoTime(s.created) or parseIsoTime(s.createdAt) or parseIsoTime(s.created_time)
+        if created and created <= cutoff and (maxPlayers==0 or (playing < maxPlayers)) then
+            table.insert(candidates, s)
+        end
+    end
+    for _,s in ipairs(candidates) do
+        local id = s.id or s.guid or s.serverId or s.jobId
+        if id then
+            local ok,err = pcall(function() TeleportService:TeleportToPlaceInstance(placeId,tostring(id),LocalPlayer) end)
+            if ok then return true end
+            task.wait(0.6)
+        end
+    end
+    return false
+end
+
+local function findMatchingRecordsAndHop()
+    uiSetStatus("Fetching API...")
+    local data=GetApiBossList()
+    if #data==0 then uiSetStatus("No API data") return false end
+    local recs=findMatchingRecords(data,getgenv().Config.Boss)
+    if #recs==0 then uiSetStatus("No matching boss in API") return false end
+    local startTick = tick()
+    for _,rec in ipairs(recs) do
+        if not getgenv().FarmActive then return false end
+        uiSetFoundServer(rec.Jobid,rec.Server or "Unknown")
+        local ok,err=HopToJobInstance(rec.Jobid)
+        if ok then return true end
+        if tick()-startTick >= 30 then break end
+        task.wait(0.6)
+    end
+    if tick()-startTick < 30 then
+        local timeout = 30 - (tick()-startTick)
+        local t0 = tick()
+        while tick()-t0 < timeout do
+            if not getgenv().FarmActive then return false end
+            local data2 = GetApiBossList()
+            local recs2 = findMatchingRecords(data2,getgenv().Config.Boss)
+            for _,rec in ipairs(recs2) do
+                if not jobidAlreadyUsed(rec.Jobid) then
+                    uiSetFoundServer(rec.Jobid,rec.Server or "Unknown")
+                    local ok,err = HopToJobInstance(rec.Jobid)
+                    if ok then return true end
+                end
+            end
+            task.wait(1)
+        end
+    end
+    local robloxOk = HopToRobloxServer(game.PlaceId)
+    return robloxOk
+end
+
+local function ensureWorldAndHop()
+    local targetW=targetWorldForBoss(getgenv().Config.Boss)
+    if targetW then
+        local cw=currentWorld()
+        if cw~=targetW then
+            uiSetStatus("Teleporting to "..targetW)
+            local pid=PLACE_WORLD[targetW]
+            if pid then TeleportToWorld(pid) return true end
+        end
+    end
+    local ok = findMatchingRecordsAndHop()
+    if not ok then
+        local rob = HopToRobloxServer(game.PlaceId)
+        return rob
+    end
+    return ok
+end
+
 local function uiCreate()
     if CoreGui:FindFirstChild("HuneIPA_HopBoss_UI") then pcall(function() CoreGui:FindFirstChild("HuneIPA_HopBoss_UI"):Destroy() end) end
     local gui = Instance.new("ScreenGui")
@@ -367,7 +466,7 @@ local function TrySelectTeam(teamName)
     return false
 end
 
-local function findMatchingRecordsAndHop()
+local function findMatchingRecordsAndHop_old()
     uiSetStatus("Fetching API...")
     local data=GetApiBossList()
     if #data==0 then uiSetStatus("No API data") return false end
@@ -383,16 +482,11 @@ local function findMatchingRecordsAndHop()
     return false
 end
 
-local function ensureWorldAndHop()
-    local targetW=targetWorldForBoss(getgenv().Config.Boss)
-    if targetW then
-        local cw=currentWorld()
-        if cw~=targetW then
-            uiSetStatus("Teleporting to "..targetW)
-            local pid=PLACE_WORLD[targetW]
-            if pid then TeleportToWorld(pid) return true end
-        end
-    end
+local function findMatchingRecordsAndHop_wrapper()
+    return findMatchingRecordsAndHop()
+end
+
+local function findMatchingRecordsAndHop()
     return findMatchingRecordsAndHop()
 end
 
