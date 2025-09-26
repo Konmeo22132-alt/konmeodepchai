@@ -236,13 +236,13 @@ local function GetRobloxServerList(placeId, limit)
     return data.data
 end
 
-local function HopToRobloxServer(placeId)
+local function hopFromRobloxApi(placeId)
     local servers = GetRobloxServerList(placeId,100)
     if #servers==0 then return false end
     local cutoff = os.time() - (75*60)
     local candidates = {}
     for _,s in ipairs(servers) do
-        local playing = s.playing or s.players or s.playCount or 0
+        local playing = s.playing or s.playCount or s.players or 0
         local maxPlayers = s.maxPlayers or s.max or 0
         local created = parseIsoTime(s.updated) or parseIsoTime(s.created) or parseIsoTime(s.createdAt) or parseIsoTime(s.created_time)
         if created and created <= cutoff and (maxPlayers==0 or (playing < maxPlayers)) then
@@ -260,40 +260,35 @@ local function HopToRobloxServer(placeId)
     return false
 end
 
-local function findMatchingRecordsAndHop()
+local function hopFromBossApiWithTimeout(timeoutSec)
     uiSetStatus("Fetching API...")
-    local data=GetApiBossList()
-    if #data==0 then uiSetStatus("No API data") return false end
-    local recs=findMatchingRecords(data,getgenv().Config.Boss)
-    if #recs==0 then uiSetStatus("No matching boss in API") return false end
     local startTick = tick()
-    for _,rec in ipairs(recs) do
-        if not getgenv().FarmActive then return false end
-        uiSetFoundServer(rec.Jobid,rec.Server or "Unknown")
-        local ok,err=HopToJobInstance(rec.Jobid)
-        if ok then return true end
-        if tick()-startTick >= 30 then break end
-        task.wait(0.6)
-    end
-    if tick()-startTick < 30 then
-        local timeout = 30 - (tick()-startTick)
-        local t0 = tick()
-        while tick()-t0 < timeout do
-            if not getgenv().FarmActive then return false end
-            local data2 = GetApiBossList()
-            local recs2 = findMatchingRecords(data2,getgenv().Config.Boss)
-            for _,rec in ipairs(recs2) do
-                if not jobidAlreadyUsed(rec.Jobid) then
+    while getgenv().FarmActive and tick()-startTick < timeoutSec do
+        local data = GetApiBossList()
+        if #data>0 then
+            local recs = findMatchingRecords(data,getgenv().Config.Boss)
+            for _,rec in ipairs(recs) do
+                if not getgenv().FarmActive then return false end
+                if rec.Jobid and rec.Jobid~="" and not jobidAlreadyUsed(rec.Jobid) then
                     uiSetFoundServer(rec.Jobid,rec.Server or "Unknown")
                     local ok,err = HopToJobInstance(rec.Jobid)
                     if ok then return true end
                 end
+                if tick()-startTick >= timeoutSec then break end
+                task.wait(0.6)
             end
-            task.wait(1)
         end
+        task.wait(1)
     end
-    local robloxOk = HopToRobloxServer(game.PlaceId)
-    return robloxOk
+    return false
+end
+
+local function findMatchingRecordsAndHop()
+    local ok = hopFromBossApiWithTimeout(30)
+    if ok then return true end
+    if not getgenv().FarmActive then return false end
+    local robOk = hopFromRobloxApi(game.PlaceId)
+    return robOk
 end
 
 local function ensureWorldAndHop()
@@ -307,8 +302,8 @@ local function ensureWorldAndHop()
         end
     end
     local ok = findMatchingRecordsAndHop()
-    if not ok then
-        local rob = HopToRobloxServer(game.PlaceId)
+    if not ok and getgenv().FarmActive then
+        local rob = hopFromRobloxApi(game.PlaceId)
         return rob
     end
     return ok
@@ -464,30 +459,6 @@ local function TrySelectTeam(teamName)
     end
     uiSetStatus("Team join failed")
     return false
-end
-
-local function findMatchingRecordsAndHop_old()
-    uiSetStatus("Fetching API...")
-    local data=GetApiBossList()
-    if #data==0 then uiSetStatus("No API data") return false end
-    local recs=findMatchingRecords(data,getgenv().Config.Boss)
-    if #recs==0 then uiSetStatus("No matching boss in API") return false end
-    for _,rec in ipairs(recs) do
-        uiSetFoundServer(rec.Jobid,rec.Server or "Unknown")
-        local ok,err=HopToJobInstance(rec.Jobid)
-        if ok then return true end
-        task.wait(0.6)
-    end
-    uiSetStatus("No available jobid to hop")
-    return false
-end
-
-local function findMatchingRecordsAndHop_wrapper()
-    return findMatchingRecordsAndHop()
-end
-
-local function findMatchingRecordsAndHop()
-    return findMatchingRecordsAndHop()
 end
 
 TrySelectTeam(getgenv().Team)
