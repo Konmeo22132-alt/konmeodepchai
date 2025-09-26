@@ -16,6 +16,9 @@ local PLACE_WORLD = {World1=2753915549, World2=4442272183, World3=7449423635}
 local JOBFILE = "JobIds.txt"
 local MeleeList = {"Combat","Dark Step","Electric","Water Kung Fu","Dragon Breath","Super Human","Death Step","Sharkman Karate","Electric Claw","Dragon Talon","Godhuman","Sanguine Art"}
 
+local MMon = { "Ship Deckhand", "Ship Engineer", "Ship Steward", "Ship Officer" }
+local MPos = CFrame.new(911.35827636719, 125.95812988281, 33159.5390625)
+
 local function currentWorld()
     local pid = game.PlaceId
     if pid == PLACE_WORLD.World1 then return "World1" end
@@ -115,24 +118,45 @@ local function FarmAndBuyEctoplasmLoop()
             task.wait(0.5)
         end
     end)
-    local mobs={["Ship Deckhand"]=true,["Ship Engineer"]=true,["Ship Steward"]=true,["Ship Officer"]=true}
-    local farmPos=CFrame.new(911.35827636719,125.95812988281,33159.5390625)
+
     while HasItem("Hellfire Torch") do
-        for _,mob in ipairs(Workspace.Enemies:GetChildren()) do
-            if mob and mobs[mob.Name] and mob:FindFirstChild("Humanoid") then
-                repeat task.wait(0.1)
+        for _, mobName in ipairs(MMon) do
+            local sameMobs = {}
+            for _, mob in ipairs(Workspace.Enemies:GetChildren()) do
+                if mob and mob.Name == mobName and mob:FindFirstChild("Humanoid") and mob:FindFirstChild("HumanoidRootPart") then
+                    table.insert(sameMobs, mob)
+                end
+            end
+
+            if #sameMobs > 0 then
+                local bringPos = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart.CFrame or MPos
+                for _, mob in ipairs(sameMobs) do
+                    spawn(function()
+                        pcall(function()
+                            mob.HumanoidRootPart.CFrame = bringPos * CFrame.new(math.random(-3,3),0,math.random(-3,3))
+                            mob.HumanoidRootPart.CanCollide = false
+                            mob.Humanoid.WalkSpeed = 0
+                        end)
+                    end)
+                end
+
+                repeat
+                    task.wait(0.1)
                     AutoHaki()
                     EquipPreferred()
-                    if mob:FindFirstChild("HumanoidRootPart") then
-                        mob.HumanoidRootPart.CanCollide=false
-                        pcall(function() mob.Humanoid.WalkSpeed=0 end)
-                        topos(mob.HumanoidRootPart.CFrame*CFrame.new(0,18,0))
-                        pcall(function() LocalPlayer.Character.HumanoidRootPart.AssemblyLinearVelocity=Vector3.new(0,0,0) end)
+                    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and sameMobs[1] and sameMobs[1]:FindFirstChild("HumanoidRootPart") then
+                        topos(sameMobs[1].HumanoidRootPart.CFrame * CFrame.new(0,10,0))
+                        pcall(function() LocalPlayer.Character.HumanoidRootPart.AssemblyLinearVelocity = Vector3.new(0,0,0) end)
                     end
-                until not mob.Parent or not HasItem("Hellfire Torch")
+                    for i=#sameMobs,1,-1 do
+                        if not sameMobs[i] or not sameMobs[i].Parent or not sameMobs[i]:FindFirstChild("Humanoid") or sameMobs[i].Humanoid.Health<=0 then
+                            table.remove(sameMobs,i)
+                        end
+                    end
+                until #sameMobs==0 or not HasItem("Hellfire Torch")
             end
         end
-        topos(farmPos)
+        topos(MPos)
         task.wait(0.5)
     end
 end
